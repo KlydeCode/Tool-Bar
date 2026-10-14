@@ -4,4 +4,5 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('bar', {
   quit: () => ipcRenderer.send('bar:quit'),
   setInteractive: (on) => ipcRenderer.send('bar:interactive', on === true),
+  getBackdrop: () => ipcRenderer.invoke('bar:backdrop'),
 });

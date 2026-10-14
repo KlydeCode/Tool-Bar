@@ -15,8 +15,12 @@ let timer = null;
 
 function setOpen(open) {
   clearTimeout(timer);
+  if (body.classList.contains('is-open') === open) return;
+  if (open) refreshBackdrop();
   body.classList.toggle('is-open', open);
   pill.setAttribute('aria-expanded', String(open));
+  // Une fois replié, on oublie la capture : la prochaine ouverture en prendra une neuve.
+  if (!open) setTimeout(() => body.classList.contains('is-open') || panel.classList.remove('has-backdrop'), 800);
 }
 
 function later(open, delay) {
@@ -24,7 +28,7 @@ function later(open, delay) {
   timer = setTimeout(() => setOpen(open), delay);
 }
 
-pill.addEventListener('mouseenter', () => later(true, OPEN_DELAY));
+pill.addEventListener('mouseenter', () => { refreshBackdrop(); later(true, OPEN_DELAY); });
 pill.addEventListener('mouseleave', () => { if (!body.classList.contains('is-open')) clearTimeout(timer); });
 pill.addEventListener('click', () => setOpen(true));
 panel.addEventListener('mouseenter', () => clearTimeout(timer));
@@ -42,6 +46,35 @@ document.addEventListener('mousemove', (event) => {
     window.bar.setInteractive(over);
   }
 });
+
+// Flou derrière le panneau : capture de l'écran prise juste avant l'ouverture (barre fermée),
+// floutée une fois dans un canvas (le flou CSS « filter » n'est pas appliqué à l'écran
+// dans une fenêtre transparente sous Windows).
+const backdrop = document.getElementById('backdrop');
+const BLUR = 28;
+let backdropPending = false;
+
+async function drawBackdrop(url) {
+  const img = new Image();
+  img.src = url;
+  await img.decode();
+  const ctx = backdrop.getContext('2d');
+  ctx.clearRect(0, 0, backdrop.width, backdrop.height);
+  ctx.filter = `blur(${BLUR}px) saturate(1.3)`;
+  // Dessinée un peu plus grande que le canvas pour que le flou ne s'éclaircisse pas sur les bords.
+  const m = BLUR * 1.5;
+  ctx.drawImage(img, -m, -m, backdrop.width + 2 * m, backdrop.height + 2 * m);
+  panel.classList.add('has-backdrop');
+}
+
+function refreshBackdrop() {
+  if (backdropPending || body.classList.contains('is-open')) return;
+  backdropPending = true;
+  window.bar.getBackdrop()
+    .then((url) => url && drawBackdrop(url))
+    .catch((error) => console.error('Flou du fond impossible :', error))
+    .finally(() => { backdropPending = false; });
+}
 
 // ---------- Horloge ----------
 // « 23:20 » et « MER. 14 OCT. », mises à jour au changement de minute.
@@ -62,7 +95,8 @@ function renderClock() {
 renderClock();
 
 // ---------- Musique ----------
-// Lecture/pause : visuel seulement pour l'instant (la vraie musique arrive en phase 8).
+// Sans musique, la pilule n'affiche que l'heure (classe « has-music » posée en phase 8).
+// Lecture/pause : visuel seulement pour l'instant.
 const play = document.getElementById('play');
 play.addEventListener('click', () => {
   const playing = body.classList.toggle('is-playing');

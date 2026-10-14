@@ -94,8 +94,13 @@ button:focus-visible, input:focus-visible {
   border: 1px solid var(--border);
   font-size: 13px;
   transform: translateX(-50%);
-  transition: opacity 0.2s, transform 0.3s var(--ease-out);
+  /* Réapparaît en fondu quand le panneau a presque fini de se replier */
+  transition: opacity 0.35s ease 0.3s, transform 0.5s var(--ease-out) 0.2s;
 }
+body:not(.has-music) .pill .eq,
+body:not(.has-music) .pill-title { display: none; }
+body:not(.has-music) .progress-fill { width: 0; }
+body:not(.has-music) .times { visibility: hidden; }
 .pill-title {
   min-width: 0;
   white-space: nowrap;
@@ -113,6 +118,7 @@ button:focus-visible, input:focus-visible {
   opacity: 0;
   transform: translateX(-50%) scale(0.9);
   pointer-events: none;
+  transition: opacity 0.2s, transform 0.3s var(--ease-out);
 }
 
 /* ---------- Panneau (barre dépliée) ---------- */
@@ -122,25 +128,63 @@ button:focus-visible, input:focus-visible {
   transform: translateX(-50%) scale(0.35, 0.15);
   opacity: 0;
   pointer-events: none;
-  transition: transform 0.3s var(--ease-out), opacity 0.2s;
+  /* Fermeture : se replie en douceur, puis s'efface */
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease 0.25s;
 }
 .is-open .panel {
   transform: translateX(-50%) scale(1);
   opacity: 1;
   pointer-events: auto;
-  transition: transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s;
+  /* Ouverture : se déplie avec un rebond léger */
+  transition: transform 0.7s cubic-bezier(0.22, 1.2, 0.36, 1), opacity 0.25s;
+}
+/* Le contenu apparaît juste après le fond, et disparaît avant lui */
+.panel > :not(.backdrop) {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.is-open .panel > :not(.backdrop) {
+  opacity: 1;
+  transition: opacity 0.35s ease 0.15s;
 }
 .panel {
   width: 680px;
   padding: 18px;
   border-radius: 32px;
-  background: var(--panel-bg);
   border: 1px solid var(--border);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
   gap: 14px;
+  overflow: hidden;
+  isolation: isolate;
 }
+/* Fond du panneau en deux couches sous le contenu : la capture de l'écran déjà floutée
+   (canvas, voir app.js), puis la teinte sombre. Sans capture, la teinte seule, plus opaque. */
+.backdrop {
+  /* Le canvas couvre toute la fenêtre : le panneau (bordure comprise) est à 21 px du bord gauche et 9 px du haut. */
+  position: absolute;
+  left: -21px;
+  top: -9px;
+  width: 720px;
+  height: 440px;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s;
+}
+.panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  /* Calculé ici (et non via --panel-bg) pour suivre la transparence propre au panneau */
+  background: rgba(10, 10, 11, calc(1 - var(--transparency)));
+  transition: background-color 0.35s;
+}
+.panel.has-backdrop { --transparency: 0.3; }
+.panel.has-backdrop .backdrop { opacity: 1; }
 
 .card {
   background: var(--card-bg);

@@ -57,7 +57,8 @@ Fidélité à la maquette : c'est la référence. Une capture est fournie par l'
 - `--c1` couleur 1 : `#8AB4FF` (musique, barre de progression, volume, pochette)
 - `--c2` couleur 2 : `#FFB86B` (bouton lecture, « : » de l'horloge, survol des tuiles, heure dans la pilule, micro coupé)
 - Fond du panneau : `rgba(10,10,11, 1 - transparence)` ; transparence réglable de 0 à 70 %, 12 % par défaut (35 % jugé trop transparent par l’utilisateur), avec flou derrière
-  (essayer l'effet acrylique de Windows 11 via Electron, sinon `backdrop-filter`)
+  (décidé en phase 3 : capture de l'écran derrière la fenêtre à l'ouverture, floutée dans un canvas ; l'acrylique floute tout le
+  rectangle de la fenêtre, `setShape` ne le découpe pas, et `backdrop-filter` / `filter` ne floutent pas le bureau)
 - Cartes intérieures : `rgba(255,255,255,0.06)` ; bordure du panneau : `rgba(255,255,255,0.1)`
 - Texte : `#F4F4F5` ; texte secondaire : `#B4B4BC` ; texte sur les couleurs : `#0A0A0B`
 
