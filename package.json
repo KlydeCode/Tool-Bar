@@ -1,0 +1,14 @@
+{
+  "name": "ma-barre",
+  "version": "0.1.0",
+  "description": "Barre façon Dynamic Island pour Windows 11",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "electron": "^44.7.2"
+  }
+}
