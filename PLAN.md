@@ -23,17 +23,17 @@ La logique pure (config, chemins, couleurs, position) vit dans `lib/` et est tes
 
 ### Phase 1 : Fenêtre
 
-- [ ] **Tâche 1.1 : Squelette npm + Electron**
+- [x] **Tâche 1.1 : Squelette npm + Electron**
   - Acceptation : `package.json` (nom, `main`, scripts `start` et `test`), Electron installé en devDependency, `.gitignore` à jour (`node_modules/`, `out/`, `dist/`).
   - Vérif. : `npm install` sans erreur ; `npx electron --version` affiche une version.
   - Fichiers : `package.json`, `.gitignore`. Taille : XS.
 
-- [ ] **Tâche 1.2 : Calcul de la position (testé)**
+- [x] **Tâche 1.2 : Calcul de la position (testé)**
   - Acceptation : `lib/position.js` exporte `topCenter(workArea, width)`, qui renvoie `{ x, y }` entiers et centrés en haut de la zone de travail, y compris sur un écran décalé (x négatif).
   - Vérif. : `npm test` passe (au moins 3 cas).
   - Fichiers : `lib/position.js`, `test/position.test.js`. Taille : S.
 
-- [ ] **Tâche 1.3 : Fenêtre de la barre**
+- [x] **Tâche 1.3 : Fenêtre de la barre**
   - Acceptation : `main.js` crée une `BrowserWindow` sans cadre, transparente, non redimensionnable, `alwaysOnTop` (niveau `screen-saver`), `skipTaskbar`, sans ombre native,
     avec `contextIsolation`, `sandbox`, sans `nodeIntegration`. Elle est placée par `topCenter` et replacée quand l'affichage change. Une seule instance (`requestSingleInstanceLock`).
     `preload.js` est vide pour l'instant mais branché. `src/index.html` affiche une pilule provisoire (fond sombre, coins ronds) pour voir la fenêtre.
@@ -41,7 +41,7 @@ La logique pure (config, chemins, couleurs, position) vit dans `lib/` et est tes
   - Vérif. : `npm start` sans erreur dans la console ; la pilule apparaît en haut au centre, au-dessus des autres fenêtres, sans bouton dans la barre des tâches. (Validé par l'utilisateur.)
   - Fichiers : `main.js`, `preload.js`, `src/index.html`, `src/styles.css`. Taille : M.
 
-- [ ] **Tâche 1.4 : Quitter proprement**
+- [x] **Tâche 1.4 : Quitter proprement**
   - Acceptation : clic droit sur la pilule (provisoire, jusqu'aux réglages) ou Ctrl+C dans le terminal pour quitter l'appli. Sans icône dans la barre des tâches, il faut un moyen de la fermer.
   - Vérif. : un clic droit ferme l'appli et le processus se termine.
   - Fichiers : `main.js`, `preload.js`, `src/app.js`, `src/index.html`. Taille : S.

@@ -1,0 +1,28 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 8px;
+  box-sizing: border-box;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.pill {
+  height: 40px;
+  padding: 0 22px;
+  display: flex;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(10, 10, 11, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #F4F4F5;
+  font-size: 14px;
+}
