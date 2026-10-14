@@ -6,11 +6,17 @@
   <title>Ma Barre</title>
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-  <!-- Panneau déplié (phase 2 : toujours visible). Clic droit : quitter (provisoire). -->
+<body class="is-playing">
+  <!-- Clic droit sur la barre : quitter (provisoire, jusqu'aux réglages). -->
+  <button class="pill" id="pill" aria-label="Ouvrir la barre" aria-expanded="false">
+    <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+    <span class="pill-title">Titre du morceau · Artiste</span>
+    <span class="pill-time" id="pill-time">23:20</span>
+  </button>
+
   <main class="panel" id="panel">
     <div class="top">
-      <section class="card music is-playing" id="music" aria-label="Musique">
+      <section class="card music" aria-label="Musique">
         <div class="card-head">
           <span class="label">En cours</span>
           <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
@@ -43,7 +49,9 @@
       <section class="card clock" aria-label="Heure">
         <div class="card-head">
           <span class="label" id="date">MER. 14 OCT.</span>
-          <svg class="icon chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>
+          <button class="collapse" id="collapse" aria-label="Réduire la barre">
+            <svg class="icon" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg>
+          </button>
         </div>
         <div class="time" id="time">23<span class="colon">:</span>20</div>
       </section>

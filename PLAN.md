@@ -61,9 +61,12 @@ La logique pure (config, chemins, couleurs, position) vit dans `lib/` et est tes
 
 ### Phase 3 : Pilule ↔ panneau
 
-- [ ] 3.1 Pilule repliée (musique + heure en couleur 2), dépliage animé (scale 0.35×0.15 → 1, 0,55 s, rebond).
-- [ ] 3.2 Ouverture au survol et au clic, fermeture quand la souris sort (petit délai).
-- [ ] 3.3 Clics traversants quand la barre est repliée : `setIgnoreMouseEvents(true, {forward:true})`, basculé selon la zone survolée (pont preload `bar.setInteractive(bool)`).
+Retours de la phase 2 corrigés ici : transparence par défaut passée de 35 % à 12 % (trop transparent), égaliseur figé là où il s'arrête en pause.
+
+
+- [x] 3.1 Pilule repliée (musique + heure en couleur 2), dépliage animé (scale 0.35×0.15 → 1, 0,55 s, rebond).
+- [x] 3.2 Ouverture au survol et au clic, fermeture quand la souris sort (petit délai), avec la flèche ˄ de la carte horloge ou avec Échap.
+- [x] 3.3 Clics traversants quand la barre est repliée : `setIgnoreMouseEvents(true, {forward:true})`, basculé selon la zone survolée (pont preload `bar.setInteractive(bool)`).
 
 **Point de contrôle 3** : survol, clic et clics traversants validés.
 

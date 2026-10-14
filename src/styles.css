@@ -18,7 +18,7 @@
 :root {
   --c1: #8AB4FF;
   --c2: #FFB86B;
-  --transparency: 0.35; /* de 0 à 0.7, réglable en phase 9 */
+  --transparency: 0.12; /* de 0 à 0.7, réglable en phase 9 (35 % jugé trop transparent) */
   --panel-bg: rgba(10, 10, 11, calc(1 - var(--transparency)));
   --card-bg: rgba(255, 255, 255, 0.06);
   --border: rgba(255, 255, 255, 0.1);
@@ -37,11 +37,6 @@ html, body {
 }
 
 body {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding-top: 8px;
-  box-sizing: border-box;
   font-family: "Uncut Sans", "Segoe UI", sans-serif;
   color: var(--text);
 }
@@ -81,7 +76,60 @@ button:focus-visible, input:focus-visible {
   color: var(--text-2);
 }
 
-/* ---------- Panneau ---------- */
+/* ---------- Pilule (barre repliée) ---------- */
+.pill, .panel {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+}
+.pill {
+  height: 40px;
+  max-width: 360px;
+  padding: 0 18px 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 999px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  transform: translateX(-50%);
+  transition: opacity 0.2s, transform 0.3s var(--ease-out);
+}
+.pill-title {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-2);
+}
+.pill-time {
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--c2);
+}
+.is-open .pill {
+  opacity: 0;
+  transform: translateX(-50%) scale(0.9);
+  pointer-events: none;
+}
+
+/* ---------- Panneau (barre dépliée) ---------- */
+/* Fermé : écrasé contre le haut ; ouvert : se déplie avec un léger rebond. */
+.panel {
+  transform-origin: top center;
+  transform: translateX(-50%) scale(0.35, 0.15);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.3s var(--ease-out), opacity 0.2s;
+}
+.is-open .panel {
+  transform: translateX(-50%) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+  transition: transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s;
+}
 .panel {
   width: 680px;
   padding: 18px;
@@ -175,8 +223,8 @@ button:focus-visible, input:focus-visible {
 .play:hover { transform: scale(1.08); }
 .play:active { transform: scale(0.94); }
 .play .icon { fill: currentColor; stroke: none; width: 18px; height: 18px; }
-.music:not(.is-playing) .icon-pause,
-.music.is-playing .icon-play { display: none; }
+body:not(.is-playing) .icon-pause,
+.is-playing .icon-play { display: none; }
 
 /* Onde qui pulse autour du bouton pendant la lecture */
 .play::after {
@@ -210,13 +258,12 @@ button:focus-visible, input:focus-visible {
   transform: scaleY(0.4);
 }
 .eq i:nth-child(2), .eq i:nth-child(4) { background: var(--c2); }
-.eq i:nth-child(2) { transform: scaleY(0.7); }
-.eq i:nth-child(3) { transform: scaleY(1); }
-.eq i:nth-child(4) { transform: scaleY(0.3); }
-.is-playing .eq i { animation: eq 0.9s ease-in-out infinite alternate; }
-.is-playing .eq i:nth-child(2) { animation-delay: -0.3s; }
-.is-playing .eq i:nth-child(3) { animation-delay: -0.6s; }
-.is-playing .eq i:nth-child(4) { animation-delay: -0.15s; }
+/* En pause, l'animation est suspendue : les barres restent figées là où elles étaient. */
+.eq i { animation: eq 0.9s ease-in-out infinite alternate paused; }
+.is-playing .eq i { animation-play-state: running; }
+.eq i:nth-child(2) { animation-delay: -0.3s; }
+.eq i:nth-child(3) { animation-delay: -0.6s; }
+.eq i:nth-child(4) { animation-delay: -0.15s; }
 @keyframes eq {
   from { transform: scaleY(0.25); }
   to { transform: scaleY(1); }
@@ -252,7 +299,18 @@ button:focus-visible, input:focus-visible {
   flex-direction: column;
   justify-content: space-between;
 }
-.chevron { width: 16px; height: 16px; color: var(--text-2); }
+.collapse {
+  width: 44px;
+  height: 44px;
+  margin: -14px -14px -14px 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--text-2);
+  transition: color 0.2s, background 0.2s;
+}
+.collapse:hover { color: var(--c2); background: rgba(255, 255, 255, 0.08); }
+.collapse .icon { width: 16px; height: 16px; }
 .time {
   font-family: "Bricolage Grotesque", sans-serif;
   font-size: 60px;

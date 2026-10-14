@@ -65,7 +65,7 @@ function topCenter(workArea, width) {
 
 ## Design (rappel de la maquette)
 
-- Couleurs : `--c1 #8AB4FF`, `--c2 #FFB86B`, fond `rgba(10,10,11, 1 - transparence)` (35 % par défaut, de 0 à 70 %), avec du flou.
+- Couleurs : `--c1 #8AB4FF`, `--c2 #FFB86B`, fond `rgba(10,10,11, 1 - transparence)` (12 % par défaut, de 0 à 70 %), avec du flou.
   Cartes : `rgba(255,255,255,.06)`, bordure : `rgba(255,255,255,.1)`, texte : `#F4F4F5` / `#B4B4BC`, texte sur couleur : `#0A0A0B`.
 - Polices : Bricolage Grotesque (horloge 60 px/800, titre 19 px/700), Uncut Sans (texte), JetBrains Mono (étiquettes 10,5 px, majuscules, +0,14em).
 - Panneau de 680 px, padding 18, coins de 32. Pilule de 40 px de haut. Carte horloge de 190 px. Tuiles de 88 px (coins 20) numérotées 01 à 06. Boutons d'au moins 44 px. Icônes style Lucide.

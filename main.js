@@ -40,6 +40,8 @@ function createWindow() {
   // Niveau « screen-saver » : reste au-dessus même de la barre des tâches Windows.
   win.setAlwaysOnTop(true, 'screen-saver');
   placeWindow();
+  // Au départ, les clics traversent la fenêtre ; « forward » garde le survol pour détecter la pilule.
+  win.setIgnoreMouseEvents(true, { forward: true });
   win.loadFile(path.join(__dirname, 'src', 'index.html'));
   win.once('ready-to-show', () => win.showInactive());
 }
@@ -56,5 +58,8 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   ipcMain.on('bar:quit', () => app.quit());
+  ipcMain.on('bar:interactive', (_event, on) => {
+    win?.setIgnoreMouseEvents(on !== true, { forward: true });
+  });
   app.on('window-all-closed', () => app.quit());
 }
