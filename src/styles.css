@@ -1,3 +1,33 @@
+/* Polices locales (licences OFL dans assets/fonts/) */
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("../assets/fonts/BricolageGrotesque.ttf") format("truetype");
+  font-weight: 200 800;
+}
+@font-face {
+  font-family: "Uncut Sans";
+  src: url("../assets/fonts/UncutSans-Variable.woff2") format("woff2");
+  font-weight: 300 700;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("../assets/fonts/JetBrainsMono.ttf") format("truetype");
+  font-weight: 100 800;
+}
+
+:root {
+  --c1: #8AB4FF;
+  --c2: #FFB86B;
+  --transparency: 0.35; /* de 0 à 0.7, réglable en phase 9 */
+  --panel-bg: rgba(10, 10, 11, calc(1 - var(--transparency)));
+  --card-bg: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.1);
+  --text: #F4F4F5;
+  --text-2: #B4B4BC;
+  --on-color: #0A0A0B;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 html, body {
   margin: 0;
   height: 100%;
@@ -12,17 +42,334 @@ body {
   align-items: flex-start;
   padding-top: 8px;
   box-sizing: border-box;
-  font-family: "Segoe UI", sans-serif;
+  font-family: "Uncut Sans", "Segoe UI", sans-serif;
+  color: var(--text);
 }
 
-.pill {
-  height: 40px;
-  padding: 0 22px;
+*, *::before, *::after { box-sizing: border-box; }
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+button:focus-visible, input:focus-visible {
+  outline: 2px solid var(--c2);
+  outline-offset: 2px;
+}
+
+/* Icônes à traits simples (style Lucide) */
+.icon {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+
+.label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+/* ---------- Panneau ---------- */
+.panel {
+  width: 680px;
+  padding: 18px;
+  border-radius: 32px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card {
+  background: var(--card-bg);
+  border-radius: 20px;
+}
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.top {
+  display: flex;
+  gap: 14px;
+}
+
+/* ---------- Musique ---------- */
+.music {
+  flex: 1;
+  padding: 16px 16px 12px;
+}
+.track {
   display: flex;
   align-items: center;
-  border-radius: 999px;
-  background: rgba(10, 10, 11, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #F4F4F5;
-  font-size: 14px;
+  gap: 14px;
+  margin: 10px 0 14px;
+}
+.cover {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--c1);
+  color: var(--on-color);
+  display: grid;
+  place-items: center;
+}
+.cover .icon { width: 24px; height: 24px; stroke-width: 2; }
+.track-text { flex: 1; min-width: 0; }
+.title {
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: 19px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.artist {
+  font-size: 13.5px;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.ctrl {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+.ctrl .icon { transition: transform 0.25s var(--ease-out); }
+.prev:hover .icon { transform: translateX(-3px); }
+.next:hover .icon { transform: translateX(3px); }
+
+.play {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--c2);
+  color: var(--on-color);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 0 3px rgba(255, 184, 107, 0.3);
+  transition: transform 0.25s var(--ease-out);
+}
+.play:hover { transform: scale(1.08); }
+.play:active { transform: scale(0.94); }
+.play .icon { fill: currentColor; stroke: none; width: 18px; height: 18px; }
+.music:not(.is-playing) .icon-pause,
+.music.is-playing .icon-play { display: none; }
+
+/* Onde qui pulse autour du bouton pendant la lecture */
+.play::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--c2);
+  opacity: 0;
+  pointer-events: none;
+}
+.is-playing .play::after { animation: wave 1.8s ease-out infinite; }
+@keyframes wave {
+  from { transform: scale(1); opacity: 0.6; }
+  to { transform: scale(1.6); opacity: 0; }
+}
+
+/* Égaliseur : barres qui dansent pendant la lecture */
+.eq {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+.eq i {
+  width: 3px;
+  height: 100%;
+  border-radius: 1px;
+  background: var(--c1);
+  transform-origin: bottom;
+  transform: scaleY(0.4);
+}
+.eq i:nth-child(2), .eq i:nth-child(4) { background: var(--c2); }
+.eq i:nth-child(2) { transform: scaleY(0.7); }
+.eq i:nth-child(3) { transform: scaleY(1); }
+.eq i:nth-child(4) { transform: scaleY(0.3); }
+.is-playing .eq i { animation: eq 0.9s ease-in-out infinite alternate; }
+.is-playing .eq i:nth-child(2) { animation-delay: -0.3s; }
+.is-playing .eq i:nth-child(3) { animation-delay: -0.6s; }
+.is-playing .eq i:nth-child(4) { animation-delay: -0.15s; }
+@keyframes eq {
+  from { transform: scaleY(0.25); }
+  to { transform: scaleY(1); }
+}
+
+.progress {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.progress-fill {
+  width: 48%;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--c1);
+}
+.times {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+/* ---------- Horloge ---------- */
+.clock {
+  width: 190px;
+  flex: none;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.chevron { width: 16px; height: 16px; color: var(--text-2); }
+.time {
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: 60px;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+.colon { color: var(--c2); }
+
+/* ---------- Raccourcis ---------- */
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 4px;
+  margin-bottom: -4px;
+}
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+}
+.tile {
+  position: relative;
+  height: 88px;
+  border-radius: 20px;
+  background: var(--card-bg);
+  border: 1px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-top: 6px;
+  transition: transform 0.25s var(--ease-out), border-color 0.2s;
+}
+.tile .num {
+  position: absolute;
+  top: 9px;
+  left: 12px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: var(--text-2);
+}
+.tile .name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.tile .icon { transition: transform 0.3s var(--ease-out), color 0.2s; }
+.tile:hover {
+  transform: translateY(-4px);
+  border-color: var(--c2);
+}
+.tile:hover .icon {
+  transform: scale(1.2) rotate(-8deg);
+  color: var(--c2);
+}
+.tile:active { transform: scale(0.94); }
+
+/* ---------- Volume + micro ---------- */
+.volume {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 6px 6px 16px;
+}
+.volume > .icon { width: 18px; height: 18px; color: var(--text-2); }
+.volume .label { margin-right: 10px; }
+.volume-value {
+  width: 34px;
+  text-align: right;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+input[type="range"] {
+  --fill: 65%;
+  flex: 1;
+  height: 20px;
+  margin: 0;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(var(--c1), var(--c1)) 0 / var(--fill) 100% no-repeat, rgba(255, 255, 255, 0.12);
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: var(--c1);
+  box-shadow: 0 0 0 3px rgba(10, 10, 11, 0.6);
+}
+
+.mic {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  display: grid;
+  place-items: center;
+  transition: background 0.2s, color 0.2s;
+}
+.mic:hover { background: rgba(255, 255, 255, 0.14); }
+.mic.is-muted { background: var(--c2); color: var(--on-color); }
+
+/* Pas d'animation si Windows demande de les réduire */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }

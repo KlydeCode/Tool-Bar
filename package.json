@@ -6,6 +6,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
+    "start:acrylic": "set BAR_ACRYLIC=1&& electron .",
     "test": "node --test"
   },
   "devDependencies": {

@@ -50,12 +50,12 @@ La logique pure (config, chemins, couleurs, position) vit dans `lib/` et est tes
 
 ### Phase 2 : Interface statique
 
-- [ ] 2.1 Polices locales (Bricolage Grotesque, Uncut Sans, JetBrains Mono, OFL) dans `assets/fonts/` + `@font-face`. Vérif. : les polices s'affichent (DevTools > Computed).
-- [ ] 2.2 Variables CSS (couleurs, rayons) + `lib/colors.js` (fond selon la transparence, testé). Vérif. : `npm test`.
-- [ ] 2.3 Carte musique + carte horloge (heure et date réelles, mises à jour chaque minute). Vérif. : comparaison avec la maquette.
-- [ ] 2.4 Six tuiles de raccourcis (icônes Lucide en SVG inline) + animations de survol et de clic. Vérif. : visuelle.
-- [ ] 2.5 Ligne volume + micro (statique), animations du bouton lecture et de l'égaliseur, `prefers-reduced-motion`. Vérif. : visuelle.
-- [ ] 2.6 Essai de `backgroundMaterial: 'acrylic'` ; on le garde seulement si le rendu est propre.
+- [x] 2.1 Polices locales (Bricolage Grotesque, Uncut Sans, JetBrains Mono, OFL) dans `assets/fonts/` + `@font-face`. Vérif. : les polices s'affichent (DevTools > Computed).
+- [x] 2.2 Variables CSS (couleurs, rayons, transparence). Le fond est calculé en CSS (`calc(1 - var(--transparency))`) ; la validation des valeurs (testée) passe en phase 9, avec les réglages.
+- [x] 2.3 Carte musique + carte horloge (heure et date réelles, mises à jour chaque minute). Vérif. : comparaison avec la maquette.
+- [x] 2.4 Six tuiles de raccourcis (icônes Lucide en SVG inline) + animations de survol et de clic. Vérif. : visuelle.
+- [x] 2.5 Ligne volume + micro (statique), animations du bouton lecture et de l'égaliseur, `prefers-reduced-motion`. Vérif. : visuelle.
+- [ ] 2.6 Essai de `backgroundMaterial: 'acrylic'` avec `npm run start:acrylic` ; on le garde seulement si le rendu est propre (verdict de l'utilisateur).
 
 **Point de contrôle 2** : l'utilisateur compare avec `maquette.png`.
 

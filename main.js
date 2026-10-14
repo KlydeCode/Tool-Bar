@@ -27,6 +27,8 @@ function createWindow() {
     fullscreenable: false,
     skipTaskbar: true,
     hasShadow: false,
+    // Essai (tâche 2.6) : effet acrylique de Windows 11 seulement avec « npm run start:acrylic ».
+    ...(process.env.BAR_ACRYLIC && { backgroundMaterial: 'acrylic' }),
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
