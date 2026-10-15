@@ -1,10 +1,10 @@
-const { app, BrowserWindow, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, screen } = require('electron');
 const { spawn } = require('node:child_process');
 const path = require('node:path');
 const readline = require('node:readline');
 const { topCenter } = require('./lib/position');
 
-// Taille fixe = panneau déplié (680 px) + marge pour l'ombre ; la pilule est dessinée dedans.
+// Taille fixe = panneau déplié (680 px) + marge ; la pilule est dessinée dedans.
 const WIDTH = 720;
 const HEIGHT = 440;
 
@@ -44,6 +44,21 @@ function createWindow() {
   win.setIgnoreMouseEvents(true, { forward: true });
   win.loadFile(path.join(__dirname, 'src', 'index.html'));
   win.once('ready-to-show', () => win.showInactive());
+  // Panneau ouvert au clavier puis clic ailleurs : on le referme.
+  win.on('blur', () => win.webContents.send('bar:close'));
+}
+
+// Raccourci global : ouvre ou ferme la barre depuis n'importe quelle appli.
+// (Ctrl+Alt+Espace était prévu mais il est déjà pris, sans doute par l'appli Claude.)
+const TOGGLE_SHORTCUT = 'Alt+Shift+Space';
+
+function registerShortcut() {
+  const ok = globalShortcut.register(TOGGLE_SHORTCUT, () => {
+    // Le focus permet de fermer avec Échap ; la barre se referme si on clique ailleurs.
+    win.focus();
+    win.webContents.send('bar:toggle');
+  });
+  if (!ok) console.error(`Raccourci ${TOGGLE_SHORTCUT} déjà utilisé par une autre appli.`);
 }
 
 // Capture de l'écran derrière la fenêtre, floutée ensuite sous le panneau (voir app.js).
@@ -62,11 +77,17 @@ function startCapturer() {
     '-File', path.join(__dirname, 'helpers', 'capture.ps1'),
   ], { windowsHide: true });
   readline.createInterface({ input: capturer.stdout }).on('line', (line) => pending.shift()?.(line));
-  capturer.on('error', (error) => console.error('Script de capture introuvable :', error));
-  capturer.on('exit', () => {
+  const stop = () => {
     capturer = null;
     pending.splice(0).forEach((resolve) => resolve(''));
+  };
+  capturer.on('error', (error) => {
+    console.error('Script de capture impossible à lancer :', error);
+    stop();
   });
+  capturer.on('exit', stop);
+  // Écrire vers un script arrêté ne doit pas faire planter l'appli.
+  capturer.stdin.on('error', () => {});
 }
 
 function grabScreen(x, y, width, height) {
@@ -99,6 +120,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     createWindow();
     startCapturer(); // prêt avant le premier survol
+    registerShortcut();
 
     for (const event of ['display-added', 'display-removed', 'display-metrics-changed']) {
       screen.on(event, placeWindow);
@@ -111,5 +133,8 @@ if (!app.requestSingleInstanceLock()) {
     win?.setIgnoreMouseEvents(on !== true, { forward: true });
   });
   app.on('window-all-closed', () => app.quit());
-  app.on('will-quit', () => capturer?.kill());
+  app.on('will-quit', () => {
+    globalShortcut.unregisterAll();
+    capturer?.kill();
+  });
 }

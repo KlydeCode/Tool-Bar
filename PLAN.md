@@ -73,7 +73,7 @@ Retours de la phase 3 : flou derrière le panneau ouvert (capture de l'écran à
 **Point de contrôle 3** : survol, clic et clics traversants validés.
 
 ### Phase 4 : Raccourci global
-- [ ] 4.1 `globalShortcut` Ctrl+Alt+Espace, qui ouvre ou ferme la barre (bascule envoyée à l'interface) ; message dans la console si le raccourci est déjà pris.
+- [x] 4.1 `globalShortcut` Alt+Maj+Espace (Ctrl+Alt+Espace déjà pris), qui ouvre ou ferme la barre (bascule envoyée à l'interface) ; message dans la console si le raccourci est déjà pris.
 
 ### Phase 5 : Raccourcis d'applis
 - [ ] 5.1 `lib/config.js` : config par défaut + fusion avec la config de l'utilisateur, lecture et écriture sûres (testé).

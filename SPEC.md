@@ -5,7 +5,7 @@
 ## Objectif
 
 Une barre façon « Dynamic Island » pour Windows 11, en haut au centre de l'écran principal.
-Repliée : une pilule (musique en cours + heure). Au survol, au clic ou avec Ctrl+Alt+Espace, elle se déplie
+Repliée : une pilule (musique en cours + heure). Au survol, au clic ou avec Alt+Maj+Espace, elle se déplie
 en un panneau : musique, heure et date, six raccourcis, volume et micro. Couleurs, transparence et raccourcis sont personnalisables.
 
 **Utilisateur** : une seule personne, qui ne code pas. Elle lance l'appli (`npm start`), teste sur son PC et dit ce qui va ou pas.
@@ -79,7 +79,7 @@ function topCenter(workArea, width) {
 | 1 | Fenêtre | Fenêtre sans cadre, fond transparent, toujours au-dessus, absente de la barre des tâches, centrée en haut de l'écran principal. Se lance sans erreur. |
 | 2 | Interface statique | Rendu fidèle à la maquette (polices, couleurs, tailles), effets de survol des tuiles et boutons. |
 | 3 | Pilule ↔ panneau | Se déplie au survol ou au clic et se replie quand la souris part. Repliée, les clics à côté de la pilule traversent la fenêtre. |
-| 4 | Raccourci global | Ctrl+Alt+Espace ouvre et ferme la barre. |
+| 4 | Raccourci global | Alt+Maj+Espace ouvre et ferme la barre. |
 | 5 | Raccourcis d'applis | Les tuiles lancent VS Code, Téléchargements, le navigateur, Claude (appli, sinon claude.ai), Windows Terminal, avec les vraies icônes. Chemins vérifiés (test). |
 | 6 | Auto-masquage | Option : la barre glisse hors de l'écran et revient quand la souris touche le haut. |
 | 7 | Volume et micro | Le curseur lit et règle le volume système ; le bouton micro coupe le micro (couleur 2 quand il est coupé). |

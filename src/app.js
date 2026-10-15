@@ -41,6 +41,9 @@ panel.addEventListener('mouseenter', () => clearTimeout(timer));
 panel.addEventListener('mouseleave', () => later(false, CLOSE_DELAY));
 document.getElementById('collapse').addEventListener('click', () => setOpen(false));
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape') setOpen(false); });
+// Alt+Maj+Espace (raccourci global, main.js) et perte du focus.
+window.bar.onToggle(() => setOpen(!body.classList.contains('is-open')));
+window.bar.onClose(() => setOpen(false));
 
 // Clics traversants : la fenêtre ne capte la souris que sur la pilule ou le panneau visibles.
 // Les mouvements de souris continuent d'arriver (option « forward » côté main.js).

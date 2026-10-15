@@ -92,7 +92,7 @@ et que l'utilisateur a validé à l'écran ce qui ne peut être vérifié que su
 2. **Interface statique** fidèle à la maquette, avec les polices et animations de survol.
 3. **Pilule ↔ panneau** : ouverture au survol/clic, fermeture quand la souris s'en va. Quand la barre est repliée,
    les clics autour doivent traverser la fenêtre (`setIgnoreMouseEvents`).
-4. **Raccourci clavier global** (Ctrl+Alt+Espace par défaut) pour ouvrir/fermer.
+4. **Raccourci clavier global** (Alt+Maj+Espace par défaut ; Ctrl+Alt+Espace est déjà pris sur le PC de l'utilisateur, sans doute par l'appli Claude) pour ouvrir/fermer.
 5. **Raccourcis d'applis** : lancer VS Code, ouvrir Téléchargements, le navigateur par défaut, Claude (appli de bureau, sinon claude.ai),
    Windows Terminal. Les vraies icônes viennent de `app.getFileIcon()`. Raccourcis définis dans la config.
 6. **Auto-masquage** (option) : la barre glisse hors de l'écran, revient quand la souris touche le haut.
