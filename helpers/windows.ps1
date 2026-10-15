@@ -5,8 +5,14 @@
 #   volume-set 0.65                      -> « ok »
 #   mic                                  -> 1 si le micro est coupé, sinon 0
 #   mic-set 1                            -> « ok » (1 = couper, 0 = rétablir)
+#   media                                -> morceau en cours en JSON ({} si rien)
+#   media-art                            -> pochette / miniature en JPEG base64
+#   media-play | media-next | media-prev -> « ok »
 # Les arguments sont toujours des nombres, vérifiés ici aussi.
 Add-Type -AssemblyName System.Drawing
+Add-Type -AssemblyName System.Runtime.WindowsRuntime
+# Titres avec accents ou emojis : la sortie doit être en UTF-8 pour main.js.
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false
 
 # Volume et micro : API Core Audio de Windows (IAudioEndpointVolume), sans dépendance.
 Add-Type -TypeDefinition @'
@@ -110,6 +116,90 @@ function Get-Capture($x, $y, $w, $h, $k) {
   [Convert]::ToBase64String($ms.ToArray())
 }
 
+# Musique : API Windows des contrôles multimédias (celle de l'encart du volume de Windows).
+# Spotify, Deezer, Apple Music et les navigateurs (YouTube…) y publient titre, artiste et pochette.
+$null = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType = WindowsRuntime]
+$null = [Windows.Storage.Streams.IRandomAccessStreamWithContentType, Windows.Storage.Streams, ContentType = WindowsRuntime]
+$null = [Windows.Storage.Streams.IInputStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
+$asTask = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
+  $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1'
+} | Select-Object -First 1
+# Réflexion obligatoire : PowerShell ne sait pas passer un flux Windows à AsStreamForRead directement.
+$asStream = [System.IO.WindowsRuntimeStreamExtensions].GetMethod('AsStreamForRead', [Type[]]@([Windows.Storage.Streams.IInputStream]))
+
+function Await($operation, [Type]$type) {
+  $task = $asTask.MakeGenericMethod($type).Invoke($null, @($operation))
+  if (-not $task.Wait(3000)) { throw 'trop long' }
+  $task.Result
+}
+
+# Sans gestionnaire de médias, la musique est simplement absente : le flou et le volume doivent marcher quand même.
+try {
+  $sessionManager = Await ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager]::RequestAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager])
+} catch {
+  $sessionManager = $null
+}
+
+function Get-MediaProperties($session) {
+  Await ($session.TryGetMediaPropertiesAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties])
+}
+
+function Get-CurrentSession {
+  if ($sessionManager) { $sessionManager.GetCurrentSession() }
+}
+
+function Get-Media {
+  $session = Get-CurrentSession
+  if (-not $session) { return '{}' }
+  $props = Get-MediaProperties $session
+  $info = $session.GetPlaybackInfo()
+  $timeline = $session.GetTimelineProperties()
+  [ordered]@{
+    app      = [string]$session.SourceAppUserModelId
+    title    = [string]$props.Title
+    artist   = [string]$props.Artist
+    status   = [string]$info.PlaybackStatus
+    position = $timeline.Position.TotalSeconds
+    duration = $timeline.EndTime.TotalSeconds
+    updated  = $timeline.LastUpdatedTime.ToUnixTimeMilliseconds()
+    canPrev  = [bool]$info.Controls.IsPreviousEnabled
+    canNext  = [bool]$info.Controls.IsNextEnabled
+    hasArt   = $null -ne $props.Thumbnail
+  } | ConvertTo-Json -Compress
+}
+
+function Get-MediaArt {
+  $session = Get-CurrentSession
+  if (-not $session) { return '' }
+  $props = Get-MediaProperties $session
+  if (-not $props.Thumbnail) { return '' }
+  $raw = Await ($props.Thumbnail.OpenReadAsync()) ([Windows.Storage.Streams.IRandomAccessStreamWithContentType])
+  $image = [System.Drawing.Image]::FromStream($asStream.Invoke($null, @($raw)))
+  # Réduite à 240 px maximum : assez pour la case de la barre, léger à envoyer.
+  $k = [Math]::Min(1.0, 240.0 / [Math]::Max($image.Width, $image.Height))
+  $small = New-Object System.Drawing.Bitmap ([Math]::Max(1, [int]($image.Width * $k))), ([Math]::Max(1, [int]($image.Height * $k)))
+  $g = [System.Drawing.Graphics]::FromImage($small)
+  $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+  $g.DrawImage($image, 0, 0, $small.Width, $small.Height)
+  $g.Dispose()
+  $image.Dispose()
+  $ms = New-Object System.IO.MemoryStream
+  $small.Save($ms, $codec, $params)
+  $small.Dispose()
+  [Convert]::ToBase64String($ms.ToArray())
+}
+
+function Invoke-MediaControl($action) {
+  $session = Get-CurrentSession
+  if (-not $session) { return '' }
+  $operation = switch ($action) {
+    'play' { $session.TryTogglePlayPauseAsync() }
+    'next' { $session.TrySkipNextAsync() }
+    'prev' { $session.TrySkipPreviousAsync() }
+  }
+  if (Await $operation ([bool])) { 'ok' } else { '' }
+}
+
 while ($null -ne ($line = [Console]::In.ReadLine())) {
   try {
     $command, $rest = $line -split ' '
@@ -126,6 +216,11 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
         [BarAudio]::SetVolume([float][Math]::Min(1.0, [Math]::Max(0.0, $level)))
         'ok'
       }
+      'media' { Get-Media }
+      'media-art' { Get-MediaArt }
+      'media-play' { Invoke-MediaControl 'play' }
+      'media-next' { Invoke-MediaControl 'next' }
+      'media-prev' { Invoke-MediaControl 'prev' }
       'mic' { if ([BarAudio]::GetMicMuted()) { '1' } else { '0' } }
       'mic-set' {
         [BarAudio]::SetMicMuted((Get-Numbers $parts 1) -eq 1)

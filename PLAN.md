@@ -95,8 +95,11 @@ Choix : API Core Audio de Windows (`IAudioEndpointVolume`) appelée depuis `help
 - [x] 7.2 Lecture et réglage du volume système, coupure du micro.
 
 ### Phase 8 : Musique
-- [ ] 8.1 Recherche (Windows `GlobalSystemMediaTransportControlsSessionManager`) ; explication à l'utilisateur avant de coder.
-- [ ] 8.2 Titre, artiste, état ; lecture/pause, suivant, précédent.
+
+Choix (expliqué à l'utilisateur) : API Windows des contrôles multimédias (`GlobalSystemMediaTransportControlsSessionManager`), appelée depuis `helpers/windows.ps1` et relue chaque seconde. Marche avec toute appli qui se déclare à Windows (Spotify, Deezer, Apple Music, navigateurs). Pochette d'album ou miniature YouTube (case élargie en 16:9). Position masquée quand elle est inconnue ou trop ancienne.
+
+- [x] 8.1 Recherche (Windows `GlobalSystemMediaTransportControlsSessionManager`) ; explication à l'utilisateur avant de coder.
+- [x] 8.2 Titre, artiste, état ; lecture/pause, suivant, précédent.
 
 ### Phase 9 : Réglages
 - [ ] 9.1 Panneau de réglages (couleurs, transparence, raccourcis, auto-masquage), enregistrés dans `userData` et appliqués en direct.

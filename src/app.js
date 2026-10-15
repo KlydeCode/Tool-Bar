@@ -179,13 +179,114 @@ function renderClock() {
 renderClock();
 
 // ---------- Musique ----------
-// Sans musique, la pilule n'affiche que l'heure (classe « has-music » posée en phase 8).
-// Lecture/pause : visuel seulement pour l'instant.
+// Morceau en cours (Spotify, Deezer, Apple Music, YouTube dans un navigateur…), relu chaque seconde.
+// Sans musique, la pilule n'affiche que l'heure.
+const MEDIA_POLL = 1000;
 const play = document.getElementById('play');
-play.addEventListener('click', () => {
-  const playing = body.classList.toggle('is-playing');
-  play.setAttribute('aria-label', playing ? 'Pause' : 'Lecture');
-});
+const prev = document.getElementById('prev');
+const next = document.getElementById('next');
+const cover = document.getElementById('cover');
+const coverArt = document.getElementById('cover-art');
+const trackTitle = document.getElementById('track-title');
+const trackArtist = document.getElementById('track-artist');
+const pillTitle = document.getElementById('pill-title');
+const progressFill = document.getElementById('progress-fill');
+const timePos = document.getElementById('time-pos');
+const timeTotal = document.getElementById('time-total');
+let media = null;
+let artFor = ''; // morceau dont la pochette est affichée
+let artPending = false;
+
+// Nom lisible de l'appli quand il n'y a pas d'artiste (« Spotify.exe » → « Spotify »).
+function appName(id) {
+  return id.split(/[\\!]/).pop().replace(/\.exe$/i, '');
+}
+
+function renderTimeline() {
+  const position = media && currentPosition(media, Date.now());
+  body.classList.toggle('no-timeline', position === null || !media);
+  if (position === null || !media) return;
+  progressFill.style.width = `${(position / media.duration) * 100}%`;
+  timePos.textContent = formatTime(position);
+  timeTotal.textContent = formatTime(media.duration);
+}
+
+function showArt(url) {
+  coverArt.onload = () => {
+    // Miniature de vidéo (plus large que haute) : case élargie au format 16:9.
+    cover.classList.toggle('is-wide', coverArt.naturalWidth > coverArt.naturalHeight * 1.2);
+    cover.classList.add('has-art');
+  };
+  coverArt.src = url;
+}
+
+function clearArt() {
+  artFor = '';
+  cover.classList.remove('has-art', 'is-wide');
+  coverArt.removeAttribute('src');
+}
+
+async function loadArt(key) {
+  if (artPending) return;
+  artPending = true;
+  try {
+    const url = await window.bar.getMediaArt();
+    if (url && media && key === trackKey(media)) {
+      artFor = key;
+      showArt(url);
+    }
+  } finally {
+    artPending = false;
+  }
+}
+
+function trackKey(m) {
+  return `${m.app}|${m.title}|${m.artist}`;
+}
+
+function renderMedia() {
+  body.classList.toggle('has-music', Boolean(media));
+  body.classList.toggle('is-playing', Boolean(media?.playing));
+  play.setAttribute('aria-label', media?.playing ? 'Pause' : 'Lecture');
+  play.disabled = !media;
+  prev.disabled = !media?.canPrev;
+  next.disabled = !media?.canNext;
+  if (!media) {
+    trackTitle.textContent = 'Aucune musique';
+    trackArtist.textContent = 'Rien en cours de lecture';
+    pillTitle.textContent = '';
+    clearArt();
+  } else {
+    const artist = media.artist || appName(media.app);
+    trackTitle.textContent = media.title;
+    trackArtist.textContent = artist;
+    pillTitle.textContent = `${media.title} · ${artist}`;
+    const key = trackKey(media);
+    if (artFor !== key) {
+      if (artFor) clearArt();
+      // Les navigateurs donnent parfois la miniature un peu après le titre : on réessaie à chaque relecture.
+      if (media.hasArt) loadArt(key);
+    }
+  }
+  renderTimeline();
+  if (!body.classList.contains('is-open')) syncPillWidth();
+}
+
+async function refreshMedia() {
+  media = await window.bar.getMedia();
+  renderMedia();
+}
+
+async function control(action) {
+  if (await window.bar.mediaControl(action)) setTimeout(refreshMedia, 300);
+}
+
+play.addEventListener('click', () => control('play'));
+prev.addEventListener('click', () => control('prev'));
+next.addEventListener('click', () => control('next'));
+
+refreshMedia();
+setInterval(refreshMedia, MEDIA_POLL);
 
 // ---------- Volume et micro ----------
 // Vrai volume du système et vrai micro (via main.js). Relus à chaque ouverture du panneau,

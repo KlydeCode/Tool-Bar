@@ -119,7 +119,11 @@ button:focus-visible, input:focus-visible {
 body:not(.has-music) .pill .eq,
 body:not(.has-music) .pill-title { display: none; }
 body:not(.has-music) .progress-fill { width: 0; }
-body:not(.has-music) .times { visibility: hidden; }
+/* Durée inconnue (fréquent avec les navigateurs) : pas de minutage */
+body:not(.has-music) .times,
+.no-timeline .times { visibility: hidden; }
+.no-timeline .progress-fill { width: 0; }
+.progress-fill { transition: width 1s linear; }
 .pill-title {
   min-width: 0;
   white-space: nowrap;
@@ -212,6 +216,7 @@ body:not(.has-music) .times { visibility: hidden; }
 /* ---------- Musique ---------- */
 .music {
   flex: 1;
+  min-width: 0; /* un titre très long est coupé (…) au lieu de pousser l'horloge */
   padding: 16px 16px 12px;
 }
 .track {
@@ -221,14 +226,30 @@ body:not(.has-music) .times { visibility: hidden; }
   margin: 10px 0 14px;
 }
 .cover {
+  position: relative;
+  flex: none;
   width: 52px;
   height: 52px;
   border-radius: 14px;
+  overflow: hidden;
   background: var(--c1);
   color: var(--on-color);
   display: grid;
   place-items: center;
+  transition: width 0.3s var(--ease-out);
 }
+/* Pochette d'album ou miniature de vidéo, par-dessus le pictogramme */
+.cover-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.cover.has-art .cover-art { opacity: 1; }
+.cover.is-wide { width: 92px; }
 .cover .icon { width: 24px; height: 24px; stroke-width: 2; }
 .track-text { flex: 1; min-width: 0; }
 .title {
@@ -256,6 +277,8 @@ body:not(.has-music) .times { visibility: hidden; }
   place-items: center;
   border-radius: 50%;
 }
+.ctrl:disabled, .play:disabled { opacity: 0.35; cursor: default; }
+.ctrl.ctrl:disabled .icon { transform: none; }
 .ctrl .icon { transition: transform 0.25s var(--ease-out); }
 .prev:hover .icon { transform: translateX(-3px); }
 .next:hover .icon { transform: translateX(3px); }

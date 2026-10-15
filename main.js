@@ -5,6 +5,7 @@ const path = require('node:path');
 const readline = require('node:readline');
 const { levelArg, micFromAnswer, percentFromLevel } = require('./lib/audio');
 const { loadConfig } = require('./lib/config');
+const { parseMedia } = require('./lib/media');
 const { isPackageName, packageIconFile, resolveShortcut } = require('./lib/launch');
 const { topCenter } = require('./lib/position');
 
@@ -138,6 +139,24 @@ async function setMicMuted(_event, muted) {
   return (await ask(`mic-set ${muted ? 1 : 0}`)) === 'ok';
 }
 
+// ---------- Musique ----------
+// Morceau en cours de n'importe quelle appli qui se déclare à Windows (Spotify, Deezer, Apple Music, navigateurs…).
+const MEDIA_ACTIONS = ['play', 'next', 'prev'];
+
+async function getMedia() {
+  return parseMedia(await ask('media'));
+}
+
+async function getMediaArt() {
+  const base64 = await ask('media-art');
+  return base64 ? `data:image/jpeg;base64,${base64}` : null;
+}
+
+async function mediaControl(_event, action) {
+  if (!MEDIA_ACTIONS.includes(action)) return false;
+  return (await ask(`media-${action}`)) === 'ok';
+}
+
 // ---------- Raccourcis d'applis ----------
 // Définis dans config.default.json, remplaçables par userData/config.json (réglages en phase 9).
 const MAX_TILES = 6;
@@ -245,6 +264,9 @@ function start() {
   ipcMain.handle('bar:audio', getAudio);
   ipcMain.handle('bar:volume', setVolume);
   ipcMain.handle('bar:mic', setMicMuted);
+  ipcMain.handle('bar:media', getMedia);
+  ipcMain.handle('bar:media-art', getMediaArt);
+  ipcMain.handle('bar:media-control', mediaControl);
   ipcMain.handle('bar:shortcuts', describeShortcuts);
   ipcMain.handle('bar:launch', launchShortcut);
   ipcMain.on('bar:interactive', (_event, on) => {

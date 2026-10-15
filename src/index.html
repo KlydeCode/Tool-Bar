@@ -25,7 +25,8 @@
           <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
         </div>
         <div class="track">
-          <div class="cover" aria-hidden="true">
+          <div class="cover" id="cover" aria-hidden="true">
+            <img class="cover-art" id="cover-art" alt="">
             <svg class="icon" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
           </div>
           <div class="track-text">
@@ -33,20 +34,20 @@
             <div class="artist" id="track-artist">Rien en cours de lecture</div>
           </div>
           <div class="controls">
-            <button class="ctrl prev" aria-label="Précédent">
+            <button class="ctrl prev" id="prev" aria-label="Précédent">
               <svg class="icon" viewBox="0 0 24 24"><polygon points="17 20 7 12 17 4 17 20"/><line x1="5" x2="5" y1="19" y2="5"/></svg>
             </button>
             <button class="play" id="play" aria-label="Lecture">
               <svg class="icon icon-pause" viewBox="0 0 24 24"><rect x="14" y="5" width="3" height="14" rx="1"/><rect x="7" y="5" width="3" height="14" rx="1"/></svg>
               <svg class="icon icon-play" viewBox="0 0 24 24"><polygon points="7 4 19 12 7 20 7 4"/></svg>
             </button>
-            <button class="ctrl next" aria-label="Suivant">
+            <button class="ctrl next" id="next" aria-label="Suivant">
               <svg class="icon" viewBox="0 0 24 24"><polygon points="7 4 17 12 7 20 7 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>
             </button>
           </div>
         </div>
-        <div class="progress" aria-hidden="true"><div class="progress-fill"></div></div>
-        <div class="times"><span>1:42</span><span>3:28</span></div>
+        <div class="progress" aria-hidden="true"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="times"><span id="time-pos">0:00</span><span id="time-total">0:00</span></div>
       </section>
 
       <section class="card clock" aria-label="Heure">
@@ -97,6 +98,7 @@
     </section>
   </main>
   </div>
+  <script src="../lib/media.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

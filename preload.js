@@ -10,6 +10,10 @@ contextBridge.exposeInMainWorld('bar', {
   getAudio: () => ipcRenderer.invoke('bar:audio'),
   setVolume: (percent) => ipcRenderer.invoke('bar:volume', percent),
   setMicMuted: (muted) => ipcRenderer.invoke('bar:mic', muted),
+  getMedia: () => ipcRenderer.invoke('bar:media'),
+  getMediaArt: () => ipcRenderer.invoke('bar:media-art'),
+  // « play » (lecture/pause), « next » ou « prev » seulement.
+  mediaControl: (action) => ipcRenderer.invoke('bar:media-control', action),
   // Seulement le numéro de la tuile : main.js retrouve la cible dans la config.
   launch: (index) => ipcRenderer.invoke('bar:launch', index),
   // Seulement des signaux sans données : l'interface ne reçoit jamais l'objet « event ».
