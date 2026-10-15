@@ -225,10 +225,9 @@ async function launchShortcut(_event, index) {
   return !error;
 }
 
-// Une seule barre à la fois : un deuxième lancement s'arrête tout de suite.
-if (!app.requestSingleInstanceLock()) {
-  app.quit();
-} else {
+// ---------- Démarrage ----------
+function start() {
+  app.on('second-instance', () => app.quit());
   app.whenReady().then(() => {
     loadSettings();
     createWindow();
@@ -256,4 +255,26 @@ if (!app.requestSingleInstanceLock()) {
     globalShortcut.unregisterAll();
     helper?.kill();
   });
+}
+
+// Une seule barre à la fois. Un nouveau lancement remplace l'ancienne : celle-ci se ferme
+// (« second-instance »), la nouvelle attend qu'elle soit partie puis démarre avec le code à jour.
+// (Avant, le nouveau lancement s'arrêtait et on testait l'ancienne version sans le savoir.)
+const LOCK_RETRY = 200; // ms
+const LOCK_TIMEOUT = 5000; // ms
+
+if (app.requestSingleInstanceLock()) {
+  start();
+} else {
+  const startedAt = Date.now();
+  const retry = setInterval(() => {
+    if (app.requestSingleInstanceLock()) {
+      clearInterval(retry);
+      start();
+    } else if (Date.now() - startedAt > LOCK_TIMEOUT) {
+      clearInterval(retry);
+      console.error('Une autre barre est déjà ouverte et ne se ferme pas.');
+      app.quit();
+    }
+  }, LOCK_RETRY);
 }
