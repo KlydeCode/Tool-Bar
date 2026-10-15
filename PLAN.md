@@ -76,10 +76,13 @@ Retours de la phase 3 : flou derrière le panneau ouvert (capture de l'écran à
 - [x] 4.1 `globalShortcut` Alt+Maj+Espace (Ctrl+Alt+Espace déjà pris), qui ouvre ou ferme la barre (bascule envoyée à l'interface) ; message dans la console si le raccourci est déjà pris.
 
 ### Phase 5 : Raccourcis d'applis
-- [ ] 5.1 `lib/config.js` : config par défaut + fusion avec la config de l'utilisateur, lecture et écriture sûres (testé).
-- [ ] 5.2 `lib/launch.js` : validation des cibles (chemin existant, `.exe` ou dossier ; URL en `https:` uniquement) (testé).
-- [ ] 5.3 IPC `bar.launch(id)` → `shell.openPath` / `shell.openExternal` / `spawn` avec des arguments fixes. Détection de VS Code, de Claude Desktop et de Windows Terminal.
-- [ ] 5.4 Vraies icônes via `app.getFileIcon()` (repli : icône Lucide).
+
+Choix : « Navigateur » ouvre une adresse web (le navigateur par défaut est choisi par Windows ; le registre n'était pas fiable). Claude et Terminal sont lancés par leurs alias Windows (`claude-desktop.exe`, `wt.exe`) ; leur vraie icône est lue dans le dossier du paquet Microsoft Store. La tuile Réglages ne fait rien avant la phase 9.
+
+- [x] 5.1 `lib/config.js` : config par défaut + fusion avec la config de l'utilisateur, lecture et écriture sûres (testé).
+- [x] 5.2 `lib/launch.js` : validation des cibles (chemin existant, `.exe` ou dossier ; URL en `https:` uniquement) (testé).
+- [x] 5.3 IPC `bar.launch(id)` → `shell.openPath` / `shell.openExternal` / `spawn` avec des arguments fixes. Détection de VS Code, de Claude Desktop et de Windows Terminal.
+- [x] 5.4 Vraies icônes via `app.getFileIcon()` (repli : icône Lucide).
 
 ### Phase 6 : Auto-masquage
 - [ ] 6.1 Option de config ; la barre glisse hors de l'écran et une bande de 2 px en haut la fait revenir.

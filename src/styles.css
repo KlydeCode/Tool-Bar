@@ -399,6 +399,7 @@ body:not(.is-playing) .icon-pause,
   font-weight: 500;
   white-space: nowrap;
 }
+.tile img.icon { width: 24px; height: 24px; }
 .tile .icon { transition: transform 0.3s var(--ease-out), color 0.2s; }
 .tile:hover {
   transform: translateY(-4px);

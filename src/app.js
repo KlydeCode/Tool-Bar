@@ -85,6 +85,35 @@ function refreshBackdrop() {
     .finally(() => { backdropPending = false; });
 }
 
+// ---------- Raccourcis d'applis ----------
+// Les tuiles prennent le nom et la vraie icône de la config (main.js) ; le pictogramme reste si pas d'icône.
+const tiles = [...document.querySelectorAll('.tile')];
+
+window.bar.getShortcuts().then((shortcuts) => {
+  tiles.forEach((tile, index) => {
+    const shortcut = shortcuts[index];
+    tile.hidden = !shortcut;
+    if (!shortcut) return;
+    tile.dataset.type = shortcut.type;
+    tile.querySelector('.name').textContent = shortcut.name;
+    if (shortcut.icon) {
+      const img = document.createElement('img');
+      img.className = 'icon';
+      img.src = shortcut.icon;
+      img.alt = '';
+      tile.querySelector('.icon').replaceWith(img);
+    }
+  });
+  document.getElementById('tile-count').textContent = String(shortcuts.length).padStart(2, '0');
+});
+
+tiles.forEach((tile, index) => {
+  tile.addEventListener('click', async () => {
+    if (tile.dataset.type === 'settings') return; // panneau de réglages en phase 9
+    if (await window.bar.launch(index)) setOpen(false);
+  });
+});
+
 // ---------- Horloge ----------
 // « 23:20 » et « MER. 14 OCT. », mises à jour au changement de minute.
 const timeEl = document.getElementById('time');

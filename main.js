@@ -1,7 +1,10 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, screen } = require('electron');
-const { spawn } = require('node:child_process');
+const { app, BrowserWindow, globalShortcut, ipcMain, screen, shell } = require('electron');
+const { execFile, spawn } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
 const readline = require('node:readline');
+const { loadConfig } = require('./lib/config');
+const { isPackageName, packageIconFile, resolveShortcut } = require('./lib/launch');
 const { topCenter } = require('./lib/position');
 
 // Taille fixe = panneau déplié (680 px) + marge ; la pilule est dessinée dedans.
@@ -113,11 +116,91 @@ async function captureBackdrop() {
   }
 }
 
+// ---------- Raccourcis d'applis ----------
+// Définis dans config.default.json, remplaçables par userData/config.json (réglages en phase 9).
+const MAX_TILES = 6;
+let shortcuts = [];
+
+function loadShortcuts() {
+  const file = path.join(app.getPath('userData'), 'config.json');
+  shortcuts = loadConfig(file, require('./config.default.json')).shortcuts.slice(0, MAX_TILES);
+}
+
+function resolveTarget(shortcut) {
+  return resolveShortcut(shortcut, {
+    env: { ...process.env, DOWNLOADS: app.getPath('downloads') },
+    // lstat et non stat : les alias d'applis Windows (wt.exe, claude-desktop.exe) sont des liens que stat ne lit pas.
+    exists: (p) => {
+      try {
+        fs.lstatSync(p);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  });
+}
+
+// Dossier d'installation d'une appli du Microsoft Store (nom vérifié, passé en argument séparé).
+function packageDir(name) {
+  if (!isPackageName(name)) return Promise.resolve('');
+  return new Promise((resolve) => {
+    execFile('powershell.exe', [
+      '-NoProfile', '-NonInteractive', '-Command',
+      '& { (Get-AppxPackage -Name $args[0] | Select-Object -First 1).InstallLocation }', name,
+    ], { windowsHide: true, timeout: 5000 }, (error, stdout) => resolve(error ? '' : stdout.trim()));
+  });
+}
+
+async function iconPath(shortcut) {
+  if (shortcut?.type !== 'app') return null;
+  if (shortcut.icon) {
+    const file = packageIconFile(await packageDir(shortcut.icon.package), shortcut.icon.file);
+    if (file) return file;
+  }
+  return resolveTarget(shortcut)?.path ?? null;
+}
+
+// Nom, type et vraie icône (applis uniquement) de chaque tuile, pour l'interface.
+async function describeShortcuts() {
+  return Promise.all(shortcuts.map(async (shortcut) => {
+    const name = typeof shortcut?.name === 'string' ? shortcut.name.slice(0, 40) : '';
+    const type = shortcut?.type === 'settings' ? 'settings' : 'launch';
+    const file = await iconPath(shortcut);
+    let icon = null;
+    if (file) {
+      try {
+        icon = (await app.getFileIcon(file, { size: 'large' })).toDataURL();
+      } catch {
+        // Pas d'icône : l'interface garde son pictogramme.
+      }
+    }
+    return { name, type, icon };
+  }));
+}
+
+async function launchShortcut(_event, index) {
+  if (!Number.isInteger(index) || index < 0 || index >= shortcuts.length) return false;
+  const target = resolveTarget(shortcuts[index]);
+  if (!target) {
+    console.error(`Raccourci ${index + 1} : cible introuvable ou refusée.`);
+    return false;
+  }
+  if (target.url) {
+    await shell.openExternal(target.url);
+    return true;
+  }
+  const error = await shell.openPath(target.path);
+  if (error) console.error(`Raccourci ${index + 1} : ${error}`);
+  return !error;
+}
+
 // Une seule barre à la fois : un deuxième lancement s'arrête tout de suite.
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.whenReady().then(() => {
+    loadShortcuts();
     createWindow();
     startCapturer(); // prêt avant le premier survol
     registerShortcut();
@@ -129,6 +212,8 @@ if (!app.requestSingleInstanceLock()) {
 
   ipcMain.on('bar:quit', () => app.quit());
   ipcMain.handle('bar:backdrop', captureBackdrop);
+  ipcMain.handle('bar:shortcuts', describeShortcuts);
+  ipcMain.handle('bar:launch', launchShortcut);
   ipcMain.on('bar:interactive', (_event, on) => {
     win?.setIgnoreMouseEvents(on !== true, { forward: true });
   });

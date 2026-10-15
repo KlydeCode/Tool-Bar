@@ -1,0 +1,42 @@
+{
+  "shortcuts": [
+    {
+      "name": "VS Code",
+      "type": "app",
+      "paths": [
+        "%LOCALAPPDATA%\\Programs\\Microsoft VS Code\\Code.exe",
+        "%ProgramFiles%\\Microsoft VS Code\\Code.exe"
+      ]
+    },
+    {
+      "name": "Téléchargements",
+      "type": "folder",
+      "paths": ["%DOWNLOADS%"]
+    },
+    {
+      "name": "Navigateur",
+      "type": "url",
+      "url": "https://www.google.com"
+    },
+    {
+      "name": "Claude",
+      "type": "app",
+      "paths": [
+        "%LOCALAPPDATA%\\Microsoft\\WindowsApps\\claude-desktop.exe",
+        "%LOCALAPPDATA%\\AnthropicClaude\\claude.exe"
+      ],
+      "fallbackUrl": "https://claude.ai",
+      "icon": { "package": "Claude", "file": "app\\Claude.exe" }
+    },
+    {
+      "name": "Terminal",
+      "type": "app",
+      "paths": ["%LOCALAPPDATA%\\Microsoft\\WindowsApps\\wt.exe"],
+      "icon": { "package": "Microsoft.WindowsTerminal", "file": "WindowsTerminal.exe" }
+    },
+    {
+      "name": "Réglages",
+      "type": "settings"
+    }
+  ]
+}
