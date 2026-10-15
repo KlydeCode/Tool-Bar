@@ -45,11 +45,40 @@ test('raccourci clavier : au moins Ctrl, Alt ou Win, puis une touche', () => {
   }
 });
 
-test('tuiles : nettoyées, 5 au plus, la tuile Réglages toujours en dernier', () => {
-  const many = Array.from({ length: 8 }, (_, i) => ({ name: `T${i}`, type: 'url', url: 'https://exemple.fr' }));
+test('tuiles : 18 au plus, la tuile Réglages toujours présente une seule fois', () => {
+  const many = Array.from({ length: 25 }, (_, i) => ({ name: `T${i}`, type: 'url', url: 'https://exemple.fr' }));
   const clean = cleanSettings({ shortcuts: many }, defaults);
-  assert.equal(clean.shortcuts.length, 6);
-  assert.deepEqual(clean.shortcuts[5], { name: 'Réglages', type: 'settings' });
+  assert.equal(clean.shortcuts.length, 18);
+  assert.equal(clean.shortcuts.filter((t) => t.type === 'settings').length, 1);
+  assert.deepEqual(clean.shortcuts[17], { name: 'Réglages', type: 'settings' });
+});
+
+test('tuiles : l\'ordre choisi est gardé, Réglages compris ; doublons de Réglages retirés', () => {
+  const clean = cleanSettings({
+    shortcuts: [
+      { name: 'Réglages', type: 'settings' },
+      { name: 'B', type: 'url', url: 'https://b.fr' },
+      { name: 'Réglages', type: 'settings' },
+      { name: 'A', type: 'url', url: 'http://a.fr' },
+    ],
+  }, defaults);
+  assert.deepEqual(clean.shortcuts.map((t) => t.name), ['Réglages', 'B', 'A']);
+});
+
+test('tuiles : fichier, dossier, appli du menu Démarrer', () => {
+  const clean = cleanSettings({
+    shortcuts: [
+      { name: 'Doc', type: 'file', paths: ['C:\\Docs\\cv.pdf'] },
+      { name: 'Spotify', type: 'startapp', appId: 'SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify' },
+      { name: 'Vide', type: 'startapp', appId: '' },
+      { name: 'Bizarre', type: 'startapp', appId: 'a\u0007b' },
+    ],
+  }, defaults);
+  assert.deepEqual(clean.shortcuts.slice(0, 2), [
+    { name: 'Doc', type: 'file', paths: ['C:\\Docs\\cv.pdf'] },
+    { name: 'Spotify', type: 'startapp', appId: 'SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify' },
+  ]);
+  assert.equal(clean.shortcuts.length, 3);
 });
 
 test('tuiles invalides : retirées ; noms trop longs coupés', () => {
@@ -64,6 +93,8 @@ test('tuiles invalides : retirées ; noms trop longs coupés', () => {
     ],
   }, defaults);
   assert.deepEqual(clean.shortcuts.map((s) => s.name), ['Ok', 'x'.repeat(40), 'Réglages']);
+  const noSettings = cleanSettings({ shortcuts: [{ name: 'Ok', type: 'app', paths: ['C:\\Apps\\x.exe'] }] }, defaults);
+  assert.deepEqual(noSettings.shortcuts.map((s) => s.type), ['app', 'settings']);
 });
 
 test('tuile sans nom : nom par défaut ; champs inconnus ignorés', () => {

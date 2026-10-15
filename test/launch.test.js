@@ -33,10 +33,18 @@ test('dossier : chemin existant', () => {
   assert.deepEqual(resolveShortcut({ type: 'folder', paths: ['%DOWNLOADS%'] }, ctx), { path: 'D:\\Téléchargements' });
 });
 
-test('adresse web : https seulement', () => {
+test('adresse web : http et https seulement', () => {
   assert.deepEqual(resolveShortcut({ type: 'url', url: 'https://www.google.com' }, ctx), { url: 'https://www.google.com' });
+  assert.deepEqual(resolveShortcut({ type: 'url', url: 'http://exemple.com' }, ctx), { url: 'http://exemple.com' });
   assert.equal(resolveShortcut({ type: 'url', url: 'javascript:alert(1)' }, ctx), null);
-  assert.equal(resolveShortcut({ type: 'url', url: 'http://exemple.com' }, ctx), null);
+  assert.equal(resolveShortcut({ type: 'url', url: 'file:///C:/Windows/x.exe' }, ctx), null);
+});
+
+test('appli : raccourci .lnk accepté ; fichier : n\'importe quel fichier existant', () => {
+  const ctxAll = { env, exists: () => true };
+  assert.deepEqual(resolveShortcut({ type: 'app', paths: ['C:\\Menu\\Spotify.lnk'] }, ctxAll), { path: 'C:\\Menu\\Spotify.lnk' });
+  assert.deepEqual(resolveShortcut({ type: 'file', paths: ['C:\\Docs\\cv.pdf'] }, ctxAll), { path: 'C:\\Docs\\cv.pdf' });
+  assert.equal(resolveShortcut({ type: 'file', paths: ['C:\\absent.pdf'] }, ctx), null);
 });
 
 test('icône dans un paquet Windows : fichier relatif, sans sortir du dossier', () => {
