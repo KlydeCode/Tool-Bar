@@ -250,8 +250,8 @@ function packageDir(name) {
 }
 
 async function iconPath(shortcut) {
-  // Applis et dossiers ont une vraie icône (le dossier Téléchargements a celle de Windows).
-  if (shortcut?.type !== 'app' && shortcut?.type !== 'folder') return null;
+  // Seules les applis ont leur vraie icône ; dossiers et sites gardent un pictogramme simple.
+  if (shortcut?.type !== 'app') return null;
   if (shortcut.icon) {
     const file = packageIconFile(await packageDir(shortcut.icon.package), shortcut.icon.file);
     if (file) return file;
