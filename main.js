@@ -79,10 +79,11 @@ let helper = null;
 const pending = [];
 
 function startHelper() {
-  // shortcut: le script est lu depuis le dossier du projet ; pour l'installateur (phase 10), le sortir de l'archive asar.
+  // Version installée : le script est sorti de l'archive app.asar (asarUnpack), que PowerShell ne sait pas lire.
+  const script = path.join(__dirname, 'helpers', 'windows.ps1').replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
   helper = spawn('powershell.exe', [
     '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-    '-File', path.join(__dirname, 'helpers', 'windows.ps1'),
+    '-File', script,
   ], { windowsHide: true });
   readline.createInterface({ input: helper.stdout }).on('line', (line) => pending.shift()?.(line));
   const stop = () => {
@@ -569,9 +570,35 @@ async function launchShortcut(_event, index) {
 }
 
 // ---------- Démarrage ----------
+// L'appli s'appelait « Ma Barre » : ses réglages et ses agendas sont repris une fois par Island.
+function migrateOldSettings() {
+  const old = path.join(app.getPath('appData'), 'ma-barre');
+  const now = app.getPath('userData');
+  if (fs.existsSync(path.join(now, 'config.json')) || !fs.existsSync(path.join(old, 'config.json'))) return;
+  try {
+    fs.mkdirSync(now, { recursive: true });
+    fs.copyFileSync(path.join(old, 'config.json'), path.join(now, 'config.json'));
+    if (fs.existsSync(path.join(old, 'calendars'))) fs.cpSync(path.join(old, 'calendars'), path.join(now, 'calendars'), { recursive: true });
+  } catch (error) {
+    console.error('Anciens réglages non repris :', error);
+  }
+}
+
+// Lancement au démarrage de Windows : seulement pour la version installée
+// (avec « npm start », Windows lancerait Electron seul, sans la barre).
+function getStartup() {
+  return { available: app.isPackaged, enabled: app.isPackaged && app.getLoginItemSettings().openAtLogin };
+}
+
+function setStartup(_event, on) {
+  if (app.isPackaged && typeof on === 'boolean') app.setLoginItemSettings({ openAtLogin: on });
+  return getStartup();
+}
+
 function start() {
   app.on('second-instance', () => app.quit());
   app.whenReady().then(() => {
+    migrateOldSettings();
     loadSettings();
     createWindow();
     startHelper(); // prêt avant le premier survol
@@ -588,6 +615,8 @@ function start() {
   ipcMain.on('bar:quit', () => app.quit());
   ipcMain.handle('bar:backdrop', captureBackdrop);
   ipcMain.handle('bar:settings', uiSettings);
+  ipcMain.handle('bar:startup', getStartup);
+  ipcMain.handle('bar:set-startup', setStartup);
   ipcMain.handle('bar:save-settings', saveSettings);
   ipcMain.handle('bar:reset-settings', resetSettings);
   ipcMain.handle('bar:pick', pickTarget);

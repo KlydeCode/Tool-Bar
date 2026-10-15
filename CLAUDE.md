@@ -1,6 +1,6 @@
-# CLAUDE.md : Ma Barre
+# CLAUDE.md : Island
 
-> Nom provisoire : renomme le projet quand tu auras trouvé un vrai nom.
+> Nom choisi par l'utilisateur à la version 1.0 (avant : « Ma Barre »). Version actuelle : 1.0.0.
 
 ## Le projet
 
@@ -101,7 +101,9 @@ et que l'utilisateur a validé à l'écran ce qui ne peut être vérifié que su
 8. **Musique** : titre/artiste en cours, lecture/pause, suivant/précédent (Spotify, navigateur…). C'est la partie la plus technique :
    chercher dans la documentation la solution la plus simple et fiable, et l'expliquer avant de la coder.
 9. **Réglages** : panneau pour les deux couleurs, la transparence, les raccourcis, l'auto-masquage ; enregistrés et rechargés au démarrage.
-10. **Finitions** : lancement au démarrage de Windows (option), création d'un installateur `.exe`.
+10. **Finitions** : lancement au démarrage de Windows (option, version installée seulement), création d'un installateur `.exe`
+    (fait en 1.0 : electron-builder, NSIS en un clic, par utilisateur, non signé ; `npm run dist` → `dist/Island-Setup-<version>.exe` ;
+    `helpers/` sorti de l'archive asar ; réglages de « Ma Barre » repris au premier lancement).
 
 Ajouts demandés après la phase 9 (avant l'installateur) :
 - **Tuiles libres** : jusqu'à 18 (3 rangées de 6), déplaçables (glisser-déposer dans le panneau, flèches dans les réglages),

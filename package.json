@@ -1,15 +1,52 @@
 {
-  "name": "ma-barre",
-  "version": "0.1.0",
+  "name": "island",
+  "productName": "Island",
+  "version": "1.0.0",
   "description": "Barre façon Dynamic Island pour Windows 11",
+  "author": "KlydeCode",
   "main": "main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
-    "test": "node --test"
+    "test": "node --test",
+    "dist": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.klydecode.island",
+    "productName": "Island",
+    "files": [
+      "main.js",
+      "preload.js",
+      "config.default.json",
+      "src/**",
+      "lib/**",
+      "helpers/**",
+      "assets/**"
+    ],
+    "asarUnpack": [
+      "helpers/**"
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Island",
+      "artifactName": "Island-Setup-${version}.exe"
+    }
   },
   "devDependencies": {
-    "electron": "^44.7.2"
+    "electron": "^44.7.2",
+    "electron-builder": "^26.15.3"
   },
   "dependencies": {
     "ical.js": "^2.2.1"

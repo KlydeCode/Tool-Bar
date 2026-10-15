@@ -1,4 +1,4 @@
-# Plan d'implémentation : Ma Barre
+# Plan d'implémentation : Island
 
 > Référence : `SPEC.md`. Ce fichier contient le plan **et** la liste des tâches. Il remplace `tasks/plan.md` et `tasks/todo.md`.
 > On coche chaque tâche quand elle est finie. Chaque phase se termine par un point de contrôle validé par l'utilisateur.
@@ -118,8 +118,8 @@ La tuile 06 ouvre les réglages dans le panneau : couleurs, transparence (du pan
 - [x] Agenda à droite du panneau : vue semaine, liens iCal (webcal → https) et fichiers .ics, lecture testée (répétitions, exceptions, fuseaux).
 
 ### Phase 10 : Finitions
-- [ ] 10.1 Lancement au démarrage (`app.setLoginItemSettings`).
-- [ ] 10.2 Installateur `.exe` (outil à valider) + `shipping-and-launch`.
+- [x] 10.1 Lancement au démarrage (`app.setLoginItemSettings`), dans les réglages, version installée seulement.
+- [x] 10.2 Installateur `.exe` avec electron-builder (accord de l'utilisateur) : `npm run dist`. Version 1.0.0, nom « Island ».
 
 ## Risques et parades
 

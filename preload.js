@@ -9,6 +9,9 @@ contextBridge.exposeInMainWorld('bar', {
   // Réglages vérifiés par main.js ; réponse { ok, error?, settings }.
   saveSettings: (settings) => ipcRenderer.invoke('bar:save-settings', settings),
   resetSettings: () => ipcRenderer.invoke('bar:reset-settings'),
+  // Lancement au démarrage de Windows : { available, enabled }.
+  getStartup: () => ipcRenderer.invoke('bar:startup'),
+  setStartup: (on) => ipcRenderer.invoke('bar:set-startup', on === true),
   // « app », « file » ou « folder » : ouvre la fenêtre de choix de Windows, renvoie le chemin ou null.
   pickTarget: (kind) => ipcRenderer.invoke('bar:pick', kind),
   getShortcuts: () => ipcRenderer.invoke('bar:shortcuts'),

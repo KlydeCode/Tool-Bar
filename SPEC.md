@@ -1,4 +1,4 @@
-# Spec : Ma Barre
+# Spec : Island
 
 > Source : `CLAUDE.md` (décisions validées) et `maquette.png` (design « 1 · Minimal », référence visuelle).
 

@@ -605,8 +605,25 @@ function save() {
   }, SAVE_DELAY);
 }
 
+// Lancement au démarrage : réglé par Windows (pas dans la config), et seulement dans la version installée.
+const setStartupInput = document.getElementById('set-startup');
+
+async function renderStartup() {
+  const startup = await window.bar.getStartup();
+  setStartupInput.checked = startup.enabled;
+  setStartupInput.disabled = !startup.available;
+  document.getElementById('startup-row').title = startup.available ? '' : 'Disponible dans la version installée';
+}
+
+setStartupInput.addEventListener('change', async () => {
+  const startup = await window.bar.setStartup(setStartupInput.checked);
+  setStartupInput.checked = startup.enabled;
+  setStatus(startup.enabled ? 'Island se lancera au démarrage de Windows.' : 'Lancement au démarrage désactivé.');
+});
+
 function openSettings() {
   renderSettings();
+  renderStartup();
   setStatus('');
   body.classList.add('is-settings');
 }
