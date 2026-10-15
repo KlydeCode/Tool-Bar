@@ -300,7 +300,7 @@ function renderResults() {
       if (!answer) return;
       settings = answer.settings;
       if (answer.ok && !answer.desktop) refreshTiles();
-      flashSearch(answer.ok ? (answer.desktop ? 'Raccourci créé sur le Bureau.' : 'Ajoutée aux raccourcis.') : answer.error);
+      flashSearch(answer.ok ? (answer.desktop ? 'Raccourci créé sur le Bureau.' : 'Raccourci créé dans la barre.') : answer.error);
     });
     window.bar.getAppIcon(result.index).then((src) => {
       if (src) icon.replaceWith(iconImage(src));

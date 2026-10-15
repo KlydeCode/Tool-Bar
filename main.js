@@ -496,19 +496,20 @@ async function appMenu(event, index) {
   let result = null;
   const menu = Menu.buildFromTemplate([
     { label: 'Ouvrir', click: () => openStartApp(id) },
-    {
-      label: "Ouvrir l'emplacement du fichier",
-      enabled: Boolean(file),
-      click: () => (file.toLowerCase().endsWith('.exe') ? shell.showItemInFolder(file) : shell.openPath(file)),
-    },
     { type: 'separator' },
-    { label: 'Ajouter aux raccourcis de la barre', click: () => { result = pinApp(event, index); } },
+    { label: 'Créer un raccourci dans la barre', click: () => { result = pinApp(event, index); } },
     {
       label: 'Créer un raccourci sur le Bureau',
       click: () => {
         const ok = createDesktopShortcut(name, { exe, appId: id });
         result = { ok, error: ok ? '' : 'Raccourci impossible à créer.', settings: config, desktop: ok };
       },
+    },
+    { type: 'separator' },
+    {
+      label: "Ouvrir l'emplacement du fichier",
+      enabled: Boolean(file),
+      click: () => (file.toLowerCase().endsWith('.exe') ? shell.showItemInFolder(file) : shell.openPath(file)),
     },
   ]);
   picking = true; // le menu ouvert ne doit pas refermer la barre
