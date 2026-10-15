@@ -189,6 +189,7 @@ function iconImage(src) {
 function makeTile(number, name, icon) {
   const tile = document.createElement('button');
   tile.className = 'tile';
+  tile.title = name; // nom complet au survol, s'il est coupé (…)
   const num = document.createElement('span');
   num.className = 'num';
   num.textContent = String(number).padStart(2, '0');

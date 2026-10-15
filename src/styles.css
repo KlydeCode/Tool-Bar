@@ -717,7 +717,12 @@ input[type="range"]::-webkit-slider-thumb {
   font-size: 13px;
   color: var(--text-2);
 }
-.result-item { position: relative; display: grid; }
+.result-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0; /* sinon un long nom élargit la case au lieu d'être coupé (…) */
+}
 .tile.is-selected { border-color: var(--c2); }
 /* Épingler l'appli trouvée en tuile */
 .pin {
