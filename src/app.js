@@ -19,9 +19,15 @@ function setOpen(open) {
   if (open) refreshBackdrop();
   body.classList.toggle('is-open', open);
   pill.setAttribute('aria-expanded', String(open));
-  // Une fois replié, on oublie la capture : la prochaine ouverture en prendra une neuve.
-  if (!open) setTimeout(() => body.classList.contains('is-open') || panel.classList.remove('has-backdrop'), 800);
+  // Replié : le fond redevient sombre tout de suite (styles.css) et on oublie la capture.
+  if (!open) setTimeout(() => body.classList.contains('is-open') || panel.classList.remove('has-backdrop'), 600);
 }
+
+// La découpe du panneau replié doit faire exactement la largeur de la pilule.
+function syncPillWidth() {
+  panel.style.setProperty('--pill-w', `${pill.offsetWidth}px`);
+}
+document.fonts.ready.then(syncPillWidth);
 
 function later(open, delay) {
   clearTimeout(timer);
@@ -90,6 +96,7 @@ function renderClock() {
   timeEl.innerHTML = `${hh}<span class="colon">:</span>${mm}`;
   pillTimeEl.textContent = `${hh}:${mm}`;
   dateEl.textContent = dateFormat.format(now).toUpperCase();
+  syncPillWidth();
   setTimeout(renderClock, 60000 - (now.getSeconds() * 1000 + now.getMilliseconds()));
 }
 renderClock();

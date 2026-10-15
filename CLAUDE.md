@@ -74,7 +74,8 @@ Fidélité à la maquette : c'est la référence. Une capture est fournie par l'
 - Boutons d'au moins 44 × 44 px. Icônes : traits simples (style Lucide).
 
 **Animations**
-- Ouverture : le panneau se déplie depuis le haut (scale depuis 0.35 × 0.15, ~0,55 s, léger rebond).
+- Ouverture : la pilule s'étire jusqu'au panneau (un seul fond découpé par `clip-path`, ~0,65 s, sans rebond) ; le contenu apparaît ensuite,
+  et le flou arrive en fondu depuis le fond sombre (choix de l'utilisateur en phase 3, à la place du « scale » depuis 0.35 × 0.15).
 - Tuiles au survol : montent de 4 px, contour en couleur 2, l'icône grossit (×1,2) en penchant de -8° et passe en couleur 2. Au clic : s'enfoncent (×0,94).
 - Précédent / suivant : l'icône glisse de 3 px dans sa direction au survol.
 - Bouton lecture : grossit au survol ; pendant la lecture, une onde en couleur 2 pulse autour.
