@@ -281,7 +281,7 @@ function selectResult(index) {
 
 function launchResult(index) {
   if (!results[index]) return;
-  window.bar.launchApp(results[index].index);
+  window.bar.launchApp(results[index].id);
   clearSearch();
   setOpen(false);
 }
@@ -295,14 +295,20 @@ function renderResults() {
       event.preventDefault();
       selectResult(i);
       menuOpen = true; // la souris va sur le menu : le panneau ne doit pas se refermer
-      const answer = await window.bar.appMenu(result.index);
+      const answer = await window.bar.appMenu(result.id);
       menuOpen = false;
       if (!answer) return;
+      if (answer.opened) {
+        // Comme un clic sur le résultat : la barre se replie.
+        clearSearch();
+        setOpen(false);
+        return;
+      }
       settings = answer.settings;
       if (answer.ok && !answer.desktop) refreshTiles();
       flashSearch(answer.ok ? (answer.desktop ? 'Raccourci créé sur le Bureau.' : 'Raccourci créé dans la barre.') : answer.error);
     });
-    window.bar.getAppIcon(result.index).then((src) => {
+    window.bar.getAppIcon(result.id).then((src) => {
       if (src) icon.replaceWith(iconImage(src));
     });
     const pin = document.createElement('button');
@@ -311,7 +317,7 @@ function renderResults() {
     pin.setAttribute('aria-label', `Ajouter ${result.name} aux raccourcis`);
     pin.append(symbol('pin'));
     pin.addEventListener('click', async () => {
-      const answer = await window.bar.pinApp(result.index);
+      const answer = await window.bar.pinApp(result.id);
       settings = answer.settings;
       if (!answer.ok) {
         pin.title = answer.error;

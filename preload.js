@@ -21,13 +21,13 @@ contextBridge.exposeInMainWorld('bar', {
   mediaControl: (action) => ipcRenderer.invoke('bar:media-control', action),
   // Seulement le numéro de la tuile : main.js retrouve la cible dans la config.
   launch: (index) => ipcRenderer.invoke('bar:launch', index),
-  // Applis du PC : recherche par texte, puis tout se fait avec le numéro du résultat.
+  // Applis du PC : recherche par texte, puis tout se fait avec l'identifiant Windows de l'appli.
   searchApps: (query) => ipcRenderer.invoke('bar:search-apps', query),
-  getAppIcon: (index) => ipcRenderer.invoke('bar:app-icon', index),
-  launchApp: (index) => ipcRenderer.invoke('bar:launch-app', index),
-  pinApp: (index) => ipcRenderer.invoke('bar:pin-app', index),
+  getAppIcon: (id) => ipcRenderer.invoke('bar:app-icon', id),
+  launchApp: (id) => ipcRenderer.invoke('bar:launch-app', id),
+  pinApp: (id) => ipcRenderer.invoke('bar:pin-app', id),
   // Menu du clic droit sur un résultat ; réponse quand il se ferme (null si rien n'a été choisi).
-  appMenu: (index) => ipcRenderer.invoke('bar:app-menu', index),
+  appMenu: (id) => ipcRenderer.invoke('bar:app-menu', id),
   // Agenda : semaine (date en millisecondes), liste des agendas, ajout d'un lien, import d'un .ics, suppression.
   getWeek: (startMs) => ipcRenderer.invoke('bar:week', startMs),
   getCalendars: () => ipcRenderer.invoke('bar:calendars'),

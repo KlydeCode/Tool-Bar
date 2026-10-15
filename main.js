@@ -447,18 +447,26 @@ function openStartApp(id) {
 async function searchPcApps(_event, query) {
   if (typeof query !== 'string' || query.length > 100) return [];
   await loadApps();
-  return searchApps(apps, query).map(({ index }) => ({ index, name: apps[index].name }));
+  return searchApps(apps, query).map(({ index }) => ({ id: apps[index].id, name: apps[index].name }));
 }
 
-function launchApp(_event, index) {
-  if (!isAppIndex(index)) return false;
+// L'interface désigne une appli par son identifiant Windows : sa position dans la liste peut changer
+// quand la liste est relue (appli installée ou désinstallée entre-temps).
+async function findApp(id) {
+  return typeof id === 'string' ? startAppIndex(id) : -1;
+}
+
+async function launchApp(_event, id) {
+  const index = await findApp(id);
+  if (index === -1) return false;
   openStartApp(apps[index].id);
   return true;
 }
 
 // Ajoute l'appli trouvée en tuile (juste avant la tuile Réglages si elle est en dernier).
-function pinApp(event, index) {
-  if (!isAppIndex(index)) return { ok: false, error: 'Appli introuvable.', settings: config };
+async function pinApp(event, id) {
+  const index = await findApp(id);
+  if (index === -1) return { ok: false, error: 'Appli introuvable.', settings: config };
   if (config.shortcuts.length >= MAX_TILES) return { ok: false, error: `${MAX_TILES} tuiles au maximum.`, settings: config };
   const tile = { name: apps[index].name.slice(0, 40), type: 'startapp', appId: apps[index].id };
   const shortcuts = [...config.shortcuts];
@@ -487,17 +495,25 @@ function createDesktopShortcut(name, { exe, appId }) {
 }
 
 // Clic droit sur un résultat de recherche : menu Windows. Se résout quand le menu se ferme.
-async function appMenu(event, index) {
-  if (!isAppIndex(index)) return null;
+async function appMenu(event, appId) {
+  const index = await findApp(appId);
+  if (index === -1) return null;
   const { id, name } = apps[index];
   const file = await appPath(index);
   // Un .exe classique se lance directement ; ceux du Microsoft Store (WindowsApps) passent par leur identifiant.
   const exe = /\.exe$/i.test(file) && !/\\WindowsApps\\/i.test(file) ? file : '';
   let result = null;
   const menu = Menu.buildFromTemplate([
-    { label: 'Ouvrir', click: () => openStartApp(id) },
+    {
+      label: 'Ouvrir',
+      click: () => {
+        openStartApp(id);
+        result = { ok: true, opened: true, settings: config };
+      },
+    },
     { type: 'separator' },
-    { label: 'Créer un raccourci dans la barre', click: () => { result = pinApp(event, index); } },
+    // Promesse gardée telle quelle : la réponse du menu attend la fin de l'ajout.
+    { label: 'Créer un raccourci dans la barre', click: () => { result = pinApp(event, id); } },
     {
       label: 'Créer un raccourci sur le Bureau',
       click: () => {
@@ -508,8 +524,8 @@ async function appMenu(event, index) {
     { type: 'separator' },
     {
       label: "Ouvrir l'emplacement du fichier",
-      enabled: Boolean(file),
-      click: () => (file.toLowerCase().endsWith('.exe') ? shell.showItemInFolder(file) : shell.openPath(file)),
+      enabled: Boolean(file) && !/\\WindowsApps\\/i.test(file),
+      click: () => shell.showItemInFolder(file),
     },
   ]);
   picking = true; // le menu ouvert ne doit pas refermer la barre
@@ -584,7 +600,7 @@ function start() {
   ipcMain.handle('bar:shortcuts', describeShortcuts);
   ipcMain.handle('bar:launch', launchShortcut);
   ipcMain.handle('bar:search-apps', searchPcApps);
-  ipcMain.handle('bar:app-icon', (_event, index) => appIcon(index));
+  ipcMain.handle('bar:app-icon', async (_event, id) => appIcon(await findApp(id)));
   ipcMain.handle('bar:launch-app', launchApp);
   ipcMain.handle('bar:pin-app', pinApp);
   ipcMain.handle('bar:app-menu', appMenu);
