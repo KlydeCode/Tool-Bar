@@ -113,6 +113,10 @@ Ajouts demandés après la phase 9 (avant l'installateur) :
   envoyées par l'utilisateur (Minimal, Pastel Landscape, Mighty Retro Zero, Spaceship 25, Apollo) ; chaque couleur reste modifiable.
 - **Police** au choix : Minimal (Bricolage / Uncut Sans / JetBrains Mono), Pixel art (Pixelify Sans / Silkscreen, tailles
   choisies pour rester nettes), Littéraire (Fraunces). Toutes en OFL, dans `assets/fonts/`.
+- **Agenda** : clic sur l'horloge → panneau qui se déplie à droite du panneau principal (fenêtre élargie à 1400 px,
+  transparente). Une semaine à la fois (‹ › et « Aujourd'hui »), en lecture seule. Sources : liens iCal (https ou webcal,
+  relus toutes les 15 min, sans connexion à un compte) ou fichiers .ics importés ; copie dans `userData/calendars/`.
+  Lecture avec `ical.js` (Mozilla, seule dépendance ajoutée, accord de l'utilisateur). Pas de rappels ni d'affichage dans la pilule.
 
 Hors périmètre pour l'instant : l'API Claude (pas de clé API), Mac/Linux.
 

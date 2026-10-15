@@ -1,6 +1,7 @@
 const body = document.body;
 const pill = document.getElementById('pill');
 const panel = document.getElementById('panel');
+const agenda = document.getElementById('agenda');
 
 // ---------- Pilule ↔ panneau ----------
 const OPEN_DELAY = 120; // évite d'ouvrir quand la souris ne fait que passer
@@ -17,6 +18,7 @@ function setOpen(open) {
     refreshAudio();
   }
   body.classList.toggle('is-open', open);
+  if (!open) body.classList.remove('is-agenda');
   pill.setAttribute('aria-expanded', String(open));
   // Replié : le fond redevient sombre tout de suite (styles.css), on oublie la capture
   // et on revient à la vue normale si les réglages étaient ouverts.
@@ -24,6 +26,7 @@ function setOpen(open) {
     setTimeout(() => {
       if (body.classList.contains('is-open')) return;
       panel.classList.remove('has-backdrop');
+      agenda.classList.remove('has-backdrop');
       closeSettings();
       clearSearch();
     }, 600);
@@ -49,6 +52,10 @@ pill.addEventListener('mouseleave', () => {
 });
 pill.addEventListener('click', () => setOpen(true));
 panel.addEventListener('mouseenter', () => clearTimeout(timer));
+agenda.addEventListener('mouseenter', () => clearTimeout(timer));
+agenda.addEventListener('mouseleave', () => {
+  if (!body.classList.contains('is-settings')) later(false, CLOSE_DELAY);
+});
 // Dans les réglages, la souris peut sortir (fenêtre de choix de fichier…) sans tout refermer.
 panel.addEventListener('mouseleave', () => {
   if (!body.classList.contains('is-settings')) later(false, CLOSE_DELAY);
@@ -100,7 +107,7 @@ document.addEventListener('mousemove', (event) => {
 // Les mouvements de souris continuent d'arriver (option « forward » côté main.js).
 let interactive = false;
 document.addEventListener('mousemove', (event) => {
-  const over = Boolean(event.target.closest('.pill, .panel'));
+  const over = Boolean(event.target.closest('.pill, .panel, .agenda'));
   if (over !== interactive) {
     interactive = over;
     window.bar.setInteractive(over);
@@ -111,7 +118,11 @@ document.addEventListener('mousemove', (event) => {
 // floutée une fois dans un canvas (le flou CSS « filter » n'est pas appliqué à l'écran
 // dans une fenêtre transparente sous Windows).
 const backdrop = document.getElementById('backdrop');
-backdrop.height = Math.round(window.innerHeight / 4);
+const agendaBackdrop = document.getElementById('agenda-backdrop');
+for (const canvas of [backdrop, agendaBackdrop]) {
+  canvas.width = Math.round(window.innerWidth / 4);
+  canvas.height = Math.round(window.innerHeight / 4);
+}
 const BLUR = 7; // en pixels du canvas, qui fait 1/4 de la fenêtre (agrandi en CSS)
 let backdropPending = false;
 
@@ -125,7 +136,9 @@ async function drawBackdrop(url) {
   // Dessinée un peu plus grande que le canvas pour que le flou ne s'éclaircisse pas sur les bords.
   const m = BLUR * 1.5;
   ctx.drawImage(img, -m, -m, backdrop.width + 2 * m, backdrop.height + 2 * m);
+  agendaBackdrop.getContext('2d').drawImage(backdrop, 0, 0);
   panel.classList.add('has-backdrop');
+  agenda.classList.add('has-backdrop');
 }
 
 function refreshBackdrop() {
@@ -649,6 +662,147 @@ window.bar.getSettings().then((loaded) => {
   applyLook();
   document.fonts.ready.then(syncPillWidth); // la police choisie peut changer la largeur de la pilule
   if (autoHide && !body.classList.contains('is-open')) body.classList.add('is-hidden');
+});
+
+// ---------- Agenda ----------
+// Clic sur l'horloge : l'agenda se déplie à droite du panneau. Une semaine à la fois (‹ › pour changer),
+// le bouton + montre les agendas (liens iCal, fichiers .ics). Tout le texte des agendas est affiché
+// avec textContent : un agenda venu d'Internet ne peut pas injecter de code.
+const weekEl = document.getElementById('week');
+const weekLabel = document.getElementById('week-label');
+const weekRange = document.getElementById('week-range');
+const manageButton = document.getElementById('agenda-manage');
+const sourceList = document.getElementById('source-list');
+const sourceForm = document.getElementById('source-add');
+const sourceUrl = document.getElementById('source-url');
+const agendaStatus = document.getElementById('agenda-status');
+const DAY_MS = 24 * 60 * 60 * 1000;
+const dayName = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric' });
+const rangeDay = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
+const hourMinute = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
+let shownWeek = Date.now(); // un instant de la semaine affichée
+
+function element(tag, className, text) {
+  const el = document.createElement(tag);
+  if (className) el.className = className;
+  if (text !== undefined) el.textContent = text;
+  return el;
+}
+
+// Numéro de semaine ISO (lundi = début de semaine).
+function weekNumber(monday) {
+  const thursday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 3);
+  const firstThursday = new Date(thursday.getFullYear(), 0, 4);
+  return 1 + Math.round((thursday - firstThursday) / DAY_MS / 7 - ((firstThursday.getDay() + 6) % 7 - 3) / 7);
+}
+
+function eventRow(event, dayStart) {
+  const row = element('div', event.calendar % 2 ? 'event alt' : 'event');
+  const startsToday = event.start >= dayStart;
+  const time = event.allDay ? 'Journée' : startsToday ? hourMinute.format(event.start) : 'Suite';
+  const info = element('div');
+  info.append(element('div', 'event-title', event.title));
+  if (event.location) info.append(element('div', 'event-place', event.location));
+  row.append(element('span', 'event-time', time), info);
+  return row;
+}
+
+async function renderWeek() {
+  const week = await window.bar.getWeek(shownWeek);
+  if (!week) return;
+  const monday = new Date(week.start);
+  const sunday = new Date(week.start + 6 * DAY_MS);
+  weekLabel.textContent = `Semaine ${weekNumber(monday)}`;
+  // « 9 – 15 nov. », ou « 28 sept. – 4 oct. » quand la semaine change de mois.
+  weekRange.textContent = monday.getMonth() === sunday.getMonth()
+    ? `${monday.getDate()} – ${rangeDay.format(sunday)}`
+    : `${rangeDay.format(monday)} – ${rangeDay.format(sunday)}`;
+  if (!settings?.calendars.length) {
+    weekEl.replaceChildren(element('p', 'agenda-empty', 'Aucun agenda.\nAjoute un lien iCal ou un fichier .ics avec le bouton +.'));
+    return;
+  }
+  const today = new Date();
+  weekEl.replaceChildren(...Array.from({ length: 7 }, (_, i) => {
+    // Jours calculés par la date (et non + 24 h) pour rester justes aux changements d'heure.
+    const start = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+    const end = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i + 1);
+    const day = element('div', 'day');
+    day.classList.toggle('is-today', start.toDateString() === today.toDateString());
+    day.append(element('div', 'label day-name', dayName.format(start)));
+    const events = week.events.filter((e) => e.start < end.getTime() && Math.max(e.end, e.start + 1) > start.getTime());
+    if (!events.length) day.append(element('div', 'day-empty', '—'));
+    for (const event of events) day.append(eventRow(event, start.getTime()));
+    return day;
+  }));
+  weekEl.querySelector('.is-today')?.scrollIntoView({ block: 'start' });
+}
+
+function setAgendaStatus(text, isError = false) {
+  agendaStatus.textContent = text;
+  agendaStatus.classList.toggle('is-error', isError);
+}
+
+async function renderSources() {
+  const calendars = await window.bar.getCalendars();
+  sourceList.replaceChildren(...calendars.map((calendar) => {
+    const row = element('div', 'source');
+    const info = element('div', 'source-info');
+    info.append(element('div', 'source-name', calendar.name));
+    const meta = element('div', calendar.error ? 'source-meta is-error' : 'source-meta',
+      calendar.error || (calendar.type === 'url' ? 'Lien, mis à jour toutes les 15 min' : 'Fichier importé'));
+    info.append(meta);
+    row.append(info, iconButton('remove', `Retirer l'agenda ${calendar.name}`, async () => {
+      applyCalendarResult(await window.bar.removeCalendar(calendar.id), 'Agenda retiré.');
+    }));
+    return row;
+  }));
+  if (!calendars.length) sourceList.append(element('div', 'day-empty', 'Aucun agenda pour l\'instant.'));
+}
+
+function applyCalendarResult(result, okText) {
+  settings = result.settings;
+  setAgendaStatus(result.ok ? okText : result.error, !result.ok);
+  renderSources();
+  renderWeek();
+}
+
+function setManaging(on) {
+  agenda.classList.toggle('is-managing', on);
+  manageButton.setAttribute('aria-pressed', String(on));
+  if (on) renderSources();
+  else renderWeek();
+}
+
+function openAgenda() {
+  agenda.style.setProperty('--agenda-h', `${panel.offsetHeight}px`);
+  shownWeek = Date.now();
+  setAgendaStatus('');
+  renderWeek();
+  setManaging(!settings?.calendars.length); // sans agenda, on commence par en ajouter un
+  body.classList.add('is-agenda');
+}
+
+document.getElementById('clock').addEventListener('click', (event) => {
+  if (event.target.closest('#collapse')) return;
+  if (body.classList.contains('is-agenda')) body.classList.remove('is-agenda');
+  else openAgenda();
+});
+document.getElementById('week-prev').addEventListener('click', () => { shownWeek -= 7 * DAY_MS; renderWeek(); });
+document.getElementById('week-next').addEventListener('click', () => { shownWeek += 7 * DAY_MS; renderWeek(); });
+document.getElementById('week-today').addEventListener('click', () => {
+  shownWeek = Date.now();
+  setManaging(false);
+});
+manageButton.addEventListener('click', () => setManaging(!agenda.classList.contains('is-managing')));
+sourceForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  setAgendaStatus('Chargement de l\'agenda…');
+  const result = await window.bar.addCalendar(sourceUrl.value);
+  if (result.ok) sourceUrl.value = '';
+  applyCalendarResult(result, 'Agenda ajouté.');
+});
+document.getElementById('source-import').addEventListener('click', async () => {
+  applyCalendarResult(await window.bar.importCalendar(), '');
 });
 
 // ---------- Horloge ----------

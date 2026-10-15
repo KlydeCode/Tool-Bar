@@ -234,9 +234,9 @@ body:not(.has-music) .times,
 .backdrop {
   /* Le canvas couvre toute la fenêtre : le panneau (bordure comprise) est à 21 px du bord gauche et 9 px du haut. */
   position: absolute;
-  left: -21px;
+  left: calc((680px - 100vw) / 2 - 1px);
   top: -9px;
-  width: 720px;
+  width: 100vw;
   height: 100vh;
   z-index: -1;
   pointer-events: none;
@@ -563,6 +563,118 @@ input[type="range"]::-webkit-slider-thumb {
 }
 .mic:hover { background: rgba(255, 255, 255, 0.14); }
 .mic.is-muted { background: var(--c2); color: var(--on-color); }
+
+/* ---------- Agenda (à droite du panneau) ---------- */
+.clock { cursor: pointer; }
+.clock:hover { background: color-mix(in srgb, var(--surface) 70%, transparent); }
+.is-agenda .clock { outline: 1px solid var(--c2); }
+.agenda {
+  position: absolute;
+  top: 8px;
+  left: calc(50% + 352px); /* 340 px = moitié du panneau, + 12 px d'écart */
+  width: 340px;
+  height: var(--agenda-h, 440px);
+  padding: 18px;
+  border-radius: 32px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  opacity: 0;
+  pointer-events: none;
+  /* Se déplie depuis le bord du panneau principal */
+  clip-path: inset(0 100% 0 0 round 32px);
+  transition: clip-path 0.35s var(--ease-out), opacity 0.2s;
+}
+.is-open.is-agenda .agenda {
+  opacity: 1;
+  pointer-events: auto;
+  clip-path: inset(0 0 0 0 round 32px);
+  transition: clip-path 0.5s var(--ease-out), opacity 0.2s;
+}
+.agenda .backdrop { left: calc(-50vw - 353px); }
+.agenda.has-backdrop .backdrop { opacity: 1; }
+.agenda::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--bg) calc((1 - var(--transparency)) * 100%), transparent);
+  transition: background-color 0.6s;
+}
+.agenda.has-backdrop { --transparency: var(--open-transparency, 0.3); }
+.agenda-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.week-range {
+  margin-top: 4px;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+.agenda-nav { display: flex; align-items: center; gap: 2px; }
+.today { min-height: 30px; padding: 0 10px; font-size: 12px; }
+.week {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 4px;
+}
+.week::-webkit-scrollbar, .source-list::-webkit-scrollbar { width: 6px; }
+.week::-webkit-scrollbar-thumb, .source-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 3px; }
+.day { display: flex; flex-direction: column; gap: 4px; }
+.day-name { padding: 0 2px; }
+.day.is-today .day-name { color: var(--c2); }
+.event {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--card-bg);
+  border-left: 3px solid var(--c1);
+}
+.event.alt { border-left-color: var(--c2); }
+.event-time {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-2);
+  padding-top: 2px;
+}
+.event-title { font-size: 13px; overflow-wrap: anywhere; }
+.event-place { font-size: 11.5px; color: var(--text-2); margin-top: 2px; overflow-wrap: anywhere; }
+.day-empty { padding: 2px 2px 4px; font-size: 12px; color: var(--text-2); opacity: 0.6; }
+.agenda-empty { margin: auto 0; white-space: pre-line; text-align: center; font-size: 13px; color: var(--text-2); line-height: 1.5; }
+/* Gestion des agendas (bouton +) : remplace la semaine */
+.agenda-sources { display: none; flex: 1; min-height: 0; flex-direction: column; gap: 8px; }
+.is-managing .week { display: none; }
+.is-managing .agenda-sources { display: flex; }
+.source-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; max-height: 200px; }
+.source {
+  display: grid;
+  grid-template-columns: 1fr 30px;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 6px 12px;
+  border-radius: 12px;
+  background: var(--card-bg);
+  font-size: 13px;
+}
+.source-info { min-width: 0; }
+.source-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source-meta { font-size: 11px; color: var(--text-2); }
+.source-meta.is-error { color: #ff8a8a; }
+.source-add { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
 
 /* ---------- Recherche d'applis ---------- */
 .search {

@@ -1,9 +1,11 @@
-const { app, BrowserWindow, dialog, globalShortcut, ipcMain, screen, shell } = require('electron');
+const { app, BrowserWindow, dialog, globalShortcut, ipcMain, net, screen, shell } = require('electron');
+const crypto = require('node:crypto');
 const { execFile, spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const readline = require('node:readline');
 const { levelArg, micFromAnswer, percentFromLevel } = require('./lib/audio');
+const { calendarUrl, eventsBetween, weekStart } = require('./lib/calendar');
 const { loadConfig, saveConfig } = require('./lib/config');
 const { parseMedia } = require('./lib/media');
 const { isPackageName, packageIconFile, resolveShortcut } = require('./lib/launch');
@@ -11,8 +13,8 @@ const { topCenter } = require('./lib/position');
 const { parseApps, searchApps } = require('./lib/search');
 const { MAX_TILES, cleanSettings } = require('./lib/settings');
 
-// Taille fixe = panneau déplié (680 px) + marge ; la pilule est dessinée dedans.
-const WIDTH = 720;
+// Taille fixe, en grande partie transparente (les clics la traversent) ; pilule et panneaux sont dessinés dedans.
+const WIDTH = 1400; // panneau (680 px) centré + panneau Agenda (340 px) à sa droite, de chaque côté
 const HEIGHT = 700; // jusqu'à 3 rangées de tuiles + la recherche
 
 let win = null;
@@ -226,6 +228,123 @@ async function pickTarget(_event, kind) {
   }
 }
 
+// ---------- Agenda ----------
+// Agendas iCal : liens (Google, Outlook, iCloud…) relus toutes les 15 minutes, ou fichiers .ics importés.
+// Une copie de chaque agenda est gardée dans userData/calendars/<id>.ics (marche aussi hors ligne).
+const CALENDAR_REFRESH = 15 * 60 * 1000;
+const CALENDAR_MAX_SIZE = 5 * 1024 * 1024; // un agenda plus gros est refusé
+const calendarErrors = new Map(); // identifiant → message de la dernière mise à jour ratée
+
+function calendarFile(id) {
+  return path.join(app.getPath('userData'), 'calendars', `${id}.ics`);
+}
+
+function readCalendar(id) {
+  try {
+    return fs.readFileSync(calendarFile(id), 'utf8');
+  } catch {
+    return '';
+  }
+}
+
+function writeCalendar(id, text) {
+  fs.mkdirSync(path.dirname(calendarFile(id)), { recursive: true });
+  fs.writeFileSync(calendarFile(id), text);
+}
+
+// Nom donné par l'agenda lui-même (Google, Outlook, iCloud le fournissent), sinon ''.
+function calendarName(text) {
+  return /^X-WR-CALNAME:(.+)$/m.exec(text)?.[1].trim().slice(0, 40) ?? '';
+}
+
+function checkCalendarText(text) {
+  if (text.length > CALENDAR_MAX_SIZE) throw new Error('Agenda trop gros (plus de 5 Mo).');
+  if (!/BEGIN:VCALENDAR/i.test(text)) throw new Error("Ce n'est pas un agenda iCal.");
+  return text;
+}
+
+async function downloadCalendar(url) {
+  const response = await net.fetch(url, { signal: AbortSignal.timeout(15000) });
+  if (!response.ok) throw new Error(`Le lien répond « ${response.status} ».`);
+  return checkCalendarText(await response.text());
+}
+
+async function refreshCalendar(calendar) {
+  if (!calendar.url) return;
+  try {
+    writeCalendar(calendar.id, await downloadCalendar(calendar.url));
+    calendarErrors.delete(calendar.id);
+  } catch (error) {
+    calendarErrors.set(calendar.id, error.message);
+  }
+}
+
+function refreshCalendars() {
+  return Promise.all(config.calendars.map(refreshCalendar));
+}
+
+// Événements de la semaine qui contient « startMs », tous agendas confondus.
+function getWeek(_event, startMs) {
+  if (!Number.isFinite(startMs)) return null;
+  const from = weekStart(new Date(startMs));
+  const to = new Date(from);
+  to.setDate(to.getDate() + 7);
+  const events = config.calendars
+    .flatMap((calendar, index) => eventsBetween(readCalendar(calendar.id), from, to).map((e) => ({ ...e, calendar: index })))
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+  return { start: from.getTime(), events };
+}
+
+function getCalendars() {
+  return config.calendars.map((c) => ({ id: c.id, name: c.name, type: c.url ? 'url' : 'file', error: calendarErrors.get(c.id) ?? '' }));
+}
+
+function saveCalendars(event, calendars) {
+  return saveSettings(event, { ...config, calendars });
+}
+
+async function addCalendarUrl(event, input) {
+  const url = calendarUrl(input);
+  if (!url) return { ok: false, error: 'Lien refusé : il doit commencer par https:// ou webcal://', settings: config };
+  if (config.calendars.length >= 10) return { ok: false, error: '10 agendas au maximum.', settings: config };
+  const id = crypto.randomBytes(8).toString('hex');
+  try {
+    writeCalendar(id, await downloadCalendar(url));
+  } catch (error) {
+    return { ok: false, error: error.message || 'Lien impossible à charger.', settings: config };
+  }
+  return saveCalendars(event, [...config.calendars, { id, name: calendarName(readCalendar(id)) || new URL(url).hostname.replace(/^www\./, ''), url }]);
+}
+
+async function importCalendar(event) {
+  if (config.calendars.length >= 10) return { ok: false, error: '10 agendas au maximum.', settings: config };
+  picking = true;
+  let result;
+  try {
+    result = await dialog.showOpenDialog(win, { title: 'Importer un agenda', properties: ['openFile'], filters: [{ name: 'Agenda iCal', extensions: ['ics'] }] });
+  } finally {
+    picking = false;
+  }
+  if (result.canceled || !result.filePaths[0]) return { ok: true, settings: config };
+  const file = result.filePaths[0];
+  const id = crypto.randomBytes(8).toString('hex');
+  try {
+    if (fs.statSync(file).size > CALENDAR_MAX_SIZE) throw new Error('Agenda trop gros (plus de 5 Mo).');
+    writeCalendar(id, checkCalendarText(fs.readFileSync(file, 'utf8')));
+  } catch (error) {
+    return { ok: false, error: error.message || 'Fichier illisible.', settings: config };
+  }
+  return saveCalendars(event, [...config.calendars, { id, name: calendarName(readCalendar(id)) || path.basename(file, path.extname(file)), file: true }]);
+}
+
+function removeCalendar(event, id) {
+  const calendar = config.calendars.find((c) => c.id === id);
+  if (!calendar) return { ok: false, error: 'Agenda introuvable.', settings: config };
+  fs.rmSync(calendarFile(calendar.id), { force: true }); // notre copie seulement, jamais le fichier d'origine
+  calendarErrors.delete(calendar.id);
+  return saveCalendars(event, config.calendars.filter((c) => c !== calendar));
+}
+
 // ---------- Raccourcis d'applis ----------
 function resolveTarget(shortcut) {
   return resolveShortcut(shortcut, {
@@ -386,6 +505,8 @@ function start() {
     createWindow();
     startHelper(); // prêt avant le premier survol
     loadApps(); // liste des applis prête pour la première recherche
+    refreshCalendars();
+    setInterval(refreshCalendars, CALENDAR_REFRESH);
     registerShortcut(config.toggleShortcut);
 
     for (const event of ['display-added', 'display-removed', 'display-metrics-changed']) {
@@ -411,6 +532,11 @@ function start() {
   ipcMain.handle('bar:app-icon', (_event, index) => appIcon(index));
   ipcMain.handle('bar:launch-app', launchApp);
   ipcMain.handle('bar:pin-app', pinApp);
+  ipcMain.handle('bar:week', getWeek);
+  ipcMain.handle('bar:calendars', getCalendars);
+  ipcMain.handle('bar:add-calendar', addCalendarUrl);
+  ipcMain.handle('bar:import-calendar', importCalendar);
+  ipcMain.handle('bar:remove-calendar', removeCalendar);
   ipcMain.on('bar:interactive', (_event, on) => {
     win?.setIgnoreMouseEvents(on !== true, { forward: true });
   });

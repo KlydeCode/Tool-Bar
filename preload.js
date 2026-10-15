@@ -26,6 +26,12 @@ contextBridge.exposeInMainWorld('bar', {
   getAppIcon: (index) => ipcRenderer.invoke('bar:app-icon', index),
   launchApp: (index) => ipcRenderer.invoke('bar:launch-app', index),
   pinApp: (index) => ipcRenderer.invoke('bar:pin-app', index),
+  // Agenda : semaine (date en millisecondes), liste des agendas, ajout d'un lien, import d'un .ics, suppression.
+  getWeek: (startMs) => ipcRenderer.invoke('bar:week', startMs),
+  getCalendars: () => ipcRenderer.invoke('bar:calendars'),
+  addCalendar: (url) => ipcRenderer.invoke('bar:add-calendar', url),
+  importCalendar: () => ipcRenderer.invoke('bar:import-calendar'),
+  removeCalendar: (id) => ipcRenderer.invoke('bar:remove-calendar', id),
   // Seulement des signaux sans données : l'interface ne reçoit jamais l'objet « event ».
   onToggle: (callback) => ipcRenderer.on('bar:toggle', () => callback()),
   onClose: (callback) => ipcRenderer.on('bar:close', () => callback()),

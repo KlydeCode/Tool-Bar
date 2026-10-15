@@ -7,6 +7,7 @@
   "font": "minimal",
   "autoHide": false,
   "toggleShortcut": "Alt+Shift+Space",
+  "calendars": [],
   "shortcuts": [
     {
       "name": "VS Code",

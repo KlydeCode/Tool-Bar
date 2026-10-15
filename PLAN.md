@@ -115,6 +115,7 @@ La tuile 06 ouvre les réglages dans le panneau : couleurs, transparence (du pan
 - [x] Recherche d'applis du PC : liste du menu Démarrer + icônes par `helpers/windows.ps1`, recherche sans accents (testée), lancer, épingler.
 - [x] Thèmes de 4 couleurs (fond, cartes, couleur 1, couleur 2) tirés des palettes envoyées ; pastilles dans les réglages (testés : couleurs valides, texte lisible).
 - [x] Choix de police : Minimal, Pixel art, Littéraire (polices OFL locales).
+- [x] Agenda à droite du panneau : vue semaine, liens iCal (webcal → https) et fichiers .ics, lecture testée (répétitions, exceptions, fuseaux).
 
 ### Phase 10 : Finitions
 - [ ] 10.1 Lancement au démarrage (`app.setLoginItemSettings`).

@@ -15,6 +15,7 @@ const defaults = {
   transparency: 30,
   autoHide: false,
   toggleShortcut: 'Alt+Shift+Space',
+  calendars: [],
   shortcuts: [
     { name: 'VS Code', type: 'app', paths: ['%LOCALAPPDATA%\\Code.exe'] },
     { name: 'Site', type: 'url', url: 'https://www.google.com' },
@@ -108,6 +109,24 @@ test('tuile sans nom : nom par défaut ; champs inconnus ignorés', () => {
 test('tuile par défaut : icône de paquet et adresse de secours gardées', () => {
   const tile = { name: 'Claude', type: 'app', paths: ['C:\\x.exe'], fallbackUrl: 'https://claude.ai', icon: { package: 'Claude', file: 'app\\Claude.exe' } };
   assert.deepEqual(cleanSettings({ shortcuts: [tile] }, defaults).shortcuts[0], tile);
+});
+
+test('agendas : lien https ou fichier importé, 10 au plus, identifiants sûrs', () => {
+  const clean = cleanSettings({
+    calendars: [
+      { id: 'abcd1234', name: 'Perso', url: 'webcal://exemple.fr/a.ics' },
+      { id: 'efgh5678', name: '', file: true },
+      { id: '../../x', name: 'Mauvais id', file: true },
+      { id: 'ijkl9012', name: 'Lien http', url: 'http://exemple.fr/a.ics' },
+    ],
+  }, defaults);
+  assert.deepEqual(clean.calendars, [
+    { id: 'abcd1234', name: 'Perso', url: 'https://exemple.fr/a.ics' },
+    { id: 'efgh5678', name: 'Agenda', file: true },
+  ]);
+  const many = Array.from({ length: 15 }, (_, i) => ({ id: `cal${String(i).padStart(5, '0')}`, name: 'A', file: true }));
+  assert.equal(cleanSettings({ calendars: many }, defaults).calendars.length, 10);
+  assert.deepEqual(cleanSettings({}, defaults).calendars, []);
 });
 
 test('enregistrement puis relecture : identique, sans fichier temporaire restant', () => {
