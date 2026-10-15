@@ -119,11 +119,19 @@ async function captureBackdrop() {
 // ---------- Raccourcis d'applis ----------
 // Définis dans config.default.json, remplaçables par userData/config.json (réglages en phase 9).
 const MAX_TILES = 6;
+let config = null;
 let shortcuts = [];
 
-function loadShortcuts() {
+function loadSettings() {
   const file = path.join(app.getPath('userData'), 'config.json');
-  shortcuts = loadConfig(file, require('./config.default.json')).shortcuts.slice(0, MAX_TILES);
+  config = loadConfig(file, require('./config.default.json'));
+  shortcuts = config.shortcuts.slice(0, MAX_TILES);
+}
+
+// Réglages utiles à l'interface. « npm start -- --auto-hide » force l'auto-masquage pour le tester
+// (shortcut: en attendant le panneau de réglages de la phase 9, qui l'enregistrera dans la config).
+function uiSettings() {
+  return { autoHide: config.autoHide === true || process.argv.includes('--auto-hide') };
 }
 
 function resolveTarget(shortcut) {
@@ -200,7 +208,7 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.whenReady().then(() => {
-    loadShortcuts();
+    loadSettings();
     createWindow();
     startCapturer(); // prêt avant le premier survol
     registerShortcut();
@@ -212,6 +220,7 @@ if (!app.requestSingleInstanceLock()) {
 
   ipcMain.on('bar:quit', () => app.quit());
   ipcMain.handle('bar:backdrop', captureBackdrop);
+  ipcMain.handle('bar:settings', uiSettings);
   ipcMain.handle('bar:shortcuts', describeShortcuts);
   ipcMain.handle('bar:launch', launchShortcut);
   ipcMain.on('bar:interactive', (_event, on) => {

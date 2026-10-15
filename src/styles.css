@@ -76,6 +76,18 @@ button:focus-visible, input:focus-visible {
   color: var(--text-2);
 }
 
+/* ---------- Auto-masquage ----------
+   La barre entière glisse au-dessus de l'écran ; elle revient quand la souris touche le haut. */
+.bar {
+  position: absolute;
+  inset: 0;
+  transition: translate 0.4s var(--ease-out);
+}
+.is-hidden .bar {
+  translate: 0 -64px;
+  transition-duration: 0.3s;
+}
+
 /* ---------- Pilule ↔ panneau ----------
    Un seul fond : le panneau. Replié, il est découpé (clip-path) à la taille de la pilule ;
    à l'ouverture, la découpe s'étire jusqu'au panneau entier. La pilule ne porte que son texte. */

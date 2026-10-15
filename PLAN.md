@@ -85,7 +85,7 @@ Choix : « Navigateur » ouvre une adresse web (le navigateur par défaut est ch
 - [x] 5.4 Vraies icônes via `app.getFileIcon()` (repli : icône Lucide).
 
 ### Phase 6 : Auto-masquage
-- [ ] 6.1 Option de config ; la barre glisse hors de l'écran et une bande de 2 px en haut la fait revenir.
+- [x] 6.1 Option de config (`autoHide`, désactivée par défaut ; à tester avec `npm start -- --auto-hide` en attendant la phase 9) ; la barre glisse hors de l'écran et une bande de 2 px en haut la fait revenir.
 
 ### Phase 7 : Volume et micro
 - [ ] 7.1 Recherche dans la doc (API Windows Core Audio : PowerShell en arguments fixes ou petit binaire) ; choix expliqué, et accord demandé si une dépendance est nécessaire.

@@ -15,6 +15,8 @@ let timer = null;
 
 function setOpen(open) {
   clearTimeout(timer);
+  if (open) showBar();
+  else scheduleHide(HIDE_DELAY);
   if (body.classList.contains('is-open') === open) return;
   if (open) refreshBackdrop();
   body.classList.toggle('is-open', open);
@@ -35,7 +37,11 @@ function later(open, delay) {
 }
 
 pill.addEventListener('mouseenter', () => { refreshBackdrop(); later(true, OPEN_DELAY); });
-pill.addEventListener('mouseleave', () => { if (!body.classList.contains('is-open')) clearTimeout(timer); });
+pill.addEventListener('mouseleave', () => {
+  if (body.classList.contains('is-open')) return;
+  clearTimeout(timer);
+  scheduleHide(HIDE_DELAY);
+});
 pill.addEventListener('click', () => setOpen(true));
 panel.addEventListener('mouseenter', () => clearTimeout(timer));
 panel.addEventListener('mouseleave', () => later(false, CLOSE_DELAY));
@@ -44,6 +50,42 @@ document.addEventListener('keydown', (event) => { if (event.key === 'Escape') se
 // Alt+Maj+Espace (raccourci global, main.js) et perte du focus.
 window.bar.onToggle(() => setOpen(!body.classList.contains('is-open')));
 window.bar.onClose(() => setOpen(false));
+
+// ---------- Auto-masquage (option de la config) ----------
+// La barre glisse hors de l'écran ; elle revient quand la souris touche le haut de l'écran
+// (dans la largeur de la fenêtre, au centre) ou avec le raccourci clavier.
+const HIDE_DELAY = 800; // après la fermeture ou le départ de la souris
+const PEEK_DELAY = 1500; // revenue sans être survolée : repart après ce délai
+const TOP_EDGE = 2; // pixels en haut de l'écran qui font revenir la barre
+let autoHide = false;
+let hideTimer = null;
+
+function showBar() {
+  clearTimeout(hideTimer);
+  body.classList.remove('is-hidden');
+}
+
+function scheduleHide(delay) {
+  if (!autoHide) return;
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => {
+    // Toujours utilisée (ouverte ou survolée) : on réessaie plus tard.
+    if (body.classList.contains('is-open') || interactive) scheduleHide(delay);
+    else body.classList.add('is-hidden');
+  }, delay);
+}
+
+window.bar.getSettings().then((settings) => {
+  autoHide = settings.autoHide;
+  if (autoHide && !body.classList.contains('is-open')) body.classList.add('is-hidden');
+});
+
+document.addEventListener('mousemove', (event) => {
+  if (autoHide && body.classList.contains('is-hidden') && event.clientY <= TOP_EDGE) {
+    showBar();
+    scheduleHide(PEEK_DELAY);
+  }
+});
 
 // Clics traversants : la fenêtre ne capte la souris que sur la pilule ou le panneau visibles.
 // Les mouvements de souris continuent d'arriver (option « forward » côté main.js).
