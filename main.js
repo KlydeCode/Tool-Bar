@@ -1,5 +1,7 @@
-const { app, BrowserWindow, desktopCapturer, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, screen } = require('electron');
+const { spawn } = require('node:child_process');
 const path = require('node:path');
+const readline = require('node:readline');
 const { topCenter } = require('./lib/position');
 
 // Taille fixe = panneau déplié (680 px) + marge pour l'ombre ; la pilule est dessinée dedans.
@@ -44,33 +46,47 @@ function createWindow() {
   win.once('ready-to-show', () => win.showInactive());
 }
 
-// Capture de l'écran derrière la fenêtre, floutée ensuite en CSS sous le panneau.
+// Capture de l'écran derrière la fenêtre, floutée ensuite sous le panneau (voir app.js).
 // (Windows ne floute pas ce qui est derrière une fenêtre transparente, et l'acrylique
 // floute tout le rectangle de la fenêtre, pas seulement le panneau arrondi.)
+// Faite par un petit script PowerShell qui reste ouvert : desktopCapturer bloquait le
+// processus principal ~0,35 s à chaque survol, ce qui faisait saccader la souris et l'animation.
+const BACKDROP_SCALE = 0.25; // l'image est floutée : une petite capture suffit
+let capturer = null;
+const pending = [];
+
+function startCapturer() {
+  // shortcut: le script est lu depuis le dossier du projet ; pour l'installateur (phase 10), le sortir de l'archive asar.
+  capturer = spawn('powershell.exe', [
+    '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+    '-File', path.join(__dirname, 'helpers', 'capture.ps1'),
+  ], { windowsHide: true });
+  readline.createInterface({ input: capturer.stdout }).on('line', (line) => pending.shift()?.(line));
+  capturer.on('error', (error) => console.error('Script de capture introuvable :', error));
+  capturer.on('exit', () => {
+    capturer = null;
+    pending.splice(0).forEach((resolve) => resolve(''));
+  });
+}
+
+function grabScreen(x, y, width, height) {
+  if (!capturer) startCapturer();
+  return new Promise((resolve) => {
+    pending.push(resolve);
+    capturer.stdin.write(`${x} ${y} ${width} ${height} ${BACKDROP_SCALE}\n`);
+    // Si le script ne répond pas, le panneau reste simplement sans flou.
+    setTimeout(() => resolve(''), 2000);
+  });
+}
+
 async function captureBackdrop() {
   if (!win) return null;
-  const display = screen.getPrimaryDisplay();
-  const sf = display.scaleFactor;
+  const b = win.getBounds();
   // La barre s'exclut de la capture le temps de la prendre.
   win.setContentProtection(true);
   try {
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: { width: display.size.width * sf, height: display.size.height * sf },
-    });
-    const source = sources.find((s) => s.display_id === String(display.id)) ?? sources[0];
-    if (!source) return null;
-    const b = win.getBounds();
-    const image = source.thumbnail.crop({
-      x: Math.round((b.x - display.bounds.x) * sf),
-      y: Math.round((b.y - display.bounds.y) * sf),
-      width: Math.round(b.width * sf),
-      height: Math.round(b.height * sf),
-    });
-    return `data:image/jpeg;base64,${image.toJPEG(80).toString('base64')}`;
-  } catch (error) {
-    console.error('Capture du fond impossible :', error);
-    return null;
+    const base64 = await grabScreen(b.x, b.y, b.width, b.height);
+    return base64 ? `data:image/jpeg;base64,${base64}` : null;
   } finally {
     win.setContentProtection(false);
   }
@@ -82,6 +98,8 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   app.whenReady().then(() => {
     createWindow();
+    startCapturer(); // prêt avant le premier survol
+
     for (const event of ['display-added', 'display-removed', 'display-metrics-changed']) {
       screen.on(event, placeWindow);
     }
@@ -93,4 +111,5 @@ if (!app.requestSingleInstanceLock()) {
     win?.setIgnoreMouseEvents(on !== true, { forward: true });
   });
   app.on('window-all-closed', () => app.quit());
+  app.on('will-quit', () => capturer?.kill());
 }

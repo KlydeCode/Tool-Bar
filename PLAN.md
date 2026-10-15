@@ -63,7 +63,7 @@ La logique pure (config, chemins, couleurs, position) vit dans `lib/` et est tes
 
 Retours de la phase 2 corrigés ici : transparence par défaut passée de 35 % à 12 % (trop transparent), égaliseur figé là où il s'arrête en pause.
 
-Retours de la phase 3 : flou derrière le panneau ouvert (capture de l'écran à l'ouverture, `desktopCapturer` + `setContentProtection` le temps de la capture, floutée dans un canvas, panneau à 30 % de transparence par-dessus) ; pilule sans musique = heure seule ; animations plus douces et un peu plus lentes (ouverture 0,7 s, fermeture 0,5 s).
+Retours de la phase 3 : flou derrière le panneau ouvert (capture de l'écran à l'ouverture par `helpers/capture.ps1`, un script PowerShell lancé une fois — `desktopCapturer` saccadait — + `setContentProtection` le temps de la capture, floutée dans un canvas, panneau à 30 % de transparence par-dessus) ; pilule sans musique = heure seule ; animations plus douces et un peu plus lentes (ouverture 0,7 s, fermeture 0,5 s).
 
 
 - [x] 3.1 Pilule repliée (musique + heure en couleur 2), dépliage animé (scale 0.35×0.15 → 1, 0,55 s, rebond).

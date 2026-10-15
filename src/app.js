@@ -57,7 +57,7 @@ document.addEventListener('mousemove', (event) => {
 // floutée une fois dans un canvas (le flou CSS « filter » n'est pas appliqué à l'écran
 // dans une fenêtre transparente sous Windows).
 const backdrop = document.getElementById('backdrop');
-const BLUR = 28;
+const BLUR = 7; // en pixels du canvas, qui fait 1/4 de la fenêtre (agrandi en CSS)
 let backdropPending = false;
 
 async function drawBackdrop(url) {
