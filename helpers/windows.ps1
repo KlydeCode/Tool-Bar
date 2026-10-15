@@ -8,6 +8,8 @@
 #   media                                -> morceau en cours en JSON ({} si rien)
 #   media-art                            -> pochette / miniature en JPEG base64
 #   media-play | media-next | media-prev -> « ok »
+#   apps                                 -> applis du menu Démarrer en JSON [{ name, id }] (liste gardée ici)
+#   app-icon 12                          -> icône de l'appli n° 12 de cette liste, en PNG base64
 # Les arguments sont toujours des nombres, vérifiés ici aussi.
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
@@ -83,6 +85,51 @@ public static class BarAudio {
   public static void SetMicMuted(bool muted) {
     var context = Guid.Empty;
     Marshal.ThrowExceptionForHR(Endpoint(Capture).SetMute(muted, ref context));
+  }
+}
+'@
+
+# Icônes des applis (y compris celles du Microsoft Store), avec leur transparence.
+Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @'
+using System;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
+
+[ComImport, Guid("bcc18b79-ba16-442f-80c4-8a59c30c463b"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IShellItemImageFactory {
+  [PreserveSig] int GetImage(SIZE size, int flags, out IntPtr hbitmap);
+}
+[StructLayout(LayoutKind.Sequential)] struct SIZE { public int cx; public int cy; }
+[StructLayout(LayoutKind.Sequential)] struct BITMAP { public int bmType, bmWidth, bmHeight, bmWidthBytes; public ushort bmPlanes, bmBitsPixel; public IntPtr bmBits; }
+
+public static class BarAppIcons {
+  [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
+  static extern void SHCreateItemFromParsingName(string path, IntPtr bc, [MarshalAs(UnmanagedType.LPStruct)] Guid riid, [MarshalAs(UnmanagedType.Interface)] out IShellItemImageFactory item);
+  [DllImport("gdi32.dll")] static extern int GetObject(IntPtr h, int size, out BITMAP bmp);
+  [DllImport("gdi32.dll")] static extern bool DeleteObject(IntPtr h);
+
+  public static Bitmap Get(string appId, int size) {
+    IShellItemImageFactory factory;
+    SHCreateItemFromParsingName("shell:AppsFolder\\" + appId, IntPtr.Zero, typeof(IShellItemImageFactory).GUID, out factory);
+    IntPtr hbmp;
+    Marshal.ThrowExceptionForHR(factory.GetImage(new SIZE { cx = size, cy = size }, 0, out hbmp));
+    try {
+      BITMAP bm;
+      GetObject(hbmp, Marshal.SizeOf(typeof(BITMAP)), out bm);
+      var result = new Bitmap(bm.bmWidth, bm.bmHeight, PixelFormat.Format32bppArgb);
+      var data = result.LockBits(new Rectangle(0, 0, bm.bmWidth, bm.bmHeight), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+      var row = new byte[bm.bmWidthBytes];
+      for (int y = 0; y < bm.bmHeight; y++) {
+        // L'image de Windows est rangée de bas en haut.
+        Marshal.Copy(new IntPtr(bm.bmBits.ToInt64() + (long)(bm.bmHeight - 1 - y) * bm.bmWidthBytes), row, 0, bm.bmWidthBytes);
+        Marshal.Copy(row, 0, new IntPtr(data.Scan0.ToInt64() + (long)y * data.Stride), Math.Min(row.Length, data.Stride));
+      }
+      result.UnlockBits(data);
+      return result;
+    } finally {
+      DeleteObject(hbmp);
+    }
   }
 }
 '@
@@ -200,6 +247,24 @@ function Invoke-MediaControl($action) {
   if (Await $operation ([bool])) { 'ok' } else { '' }
 }
 
+# Applis du PC : la liste du menu Démarrer (applis classiques et du Microsoft Store).
+# main.js désigne ensuite une appli par son numéro dans cette liste, jamais par un texte.
+$appList = @()
+
+function Get-Apps {
+  $script:appList = @(Get-StartApps | Sort-Object Name)
+  ConvertTo-Json -Compress -InputObject @($appList | ForEach-Object { [ordered]@{ name = [string]$_.Name; id = [string]$_.AppID } })
+}
+
+function Get-AppIcon($index) {
+  if ($index -lt 0 -or $index -ge $appList.Count -or $index -ne [Math]::Floor($index)) { throw 'numéro' }
+  $icon = [BarAppIcons]::Get($appList[[int]$index].AppID, 48)
+  $ms = New-Object System.IO.MemoryStream
+  $icon.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+  $icon.Dispose()
+  [Convert]::ToBase64String($ms.ToArray())
+}
+
 while ($null -ne ($line = [Console]::In.ReadLine())) {
   try {
     $command, $rest = $line -split ' '
@@ -216,6 +281,8 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
         [BarAudio]::SetVolume([float][Math]::Min(1.0, [Math]::Max(0.0, $level)))
         'ok'
       }
+      'apps' { Get-Apps }
+      'app-icon' { Get-AppIcon (Get-Numbers $parts 1) }
       'media' { Get-Media }
       'media-art' { Get-MediaArt }
       'media-play' { Invoke-MediaControl 'play' }
