@@ -113,6 +113,8 @@ La tuile 06 ouvre les réglages dans le panneau : couleurs, transparence (du pan
 - [x] Panneau : tuiles construites depuis la config, glisser-déposer pour les déplacer ; fenêtre agrandie (700 px) pour 3 rangées.
 - [x] Réglages : ajouter, supprimer, monter / descendre une tuile.
 - [x] Recherche d'applis du PC : liste du menu Démarrer + icônes par `helpers/windows.ps1`, recherche sans accents (testée), lancer, épingler.
+- [x] Thèmes de 4 couleurs (fond, cartes, couleur 1, couleur 2) tirés des palettes envoyées ; pastilles dans les réglages (testés : couleurs valides, texte lisible).
+- [x] Choix de police : Minimal, Pixel art, Littéraire (polices OFL locales).
 
 ### Phase 10 : Finitions
 - [ ] 10.1 Lancement au démarrage (`app.setLoginItemSettings`).

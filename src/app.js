@@ -333,6 +333,11 @@ const KEY_NAMES = { Control: 'Ctrl', Shift: 'Maj', Super: 'Win', Space: 'Espace'
 const TYPE_NAMES = { app: 'Appli', file: 'Fichier', folder: 'Dossier', url: 'Site web' };
 const MAX_TILES = 18;
 const SAVE_DELAY = 250; // ms : regroupe les changements rapides (curseur, couleur)
+const setThemes = document.getElementById('set-themes');
+const setBg = document.getElementById('set-bg');
+const setSurface = document.getElementById('set-surface');
+const setFont = document.getElementById('set-font');
+const THEME_COLORS = ['bg', 'surface', 'c1', 'c2'];
 const setC1 = document.getElementById('set-c1');
 const setC2 = document.getElementById('set-c2');
 const setTransparency = document.getElementById('set-transparency');
@@ -345,11 +350,11 @@ let settings = null;
 let saveTimer = null;
 let recordingShortcut = false;
 
-// Couleurs, transparence et auto-masquage appliqués à toute la barre.
+// Couleurs du thème, police, transparence et auto-masquage appliqués à toute la barre.
 function applyLook() {
   const root = document.documentElement.style;
-  root.setProperty('--c1', settings.c1);
-  root.setProperty('--c2', settings.c2);
+  for (const key of THEME_COLORS) root.setProperty(`--${key}`, settings[key]);
+  body.dataset.font = settings.font;
   root.setProperty('--open-transparency', String(settings.transparency / 100));
   autoHide = settings.autoHide;
   if (!autoHide) showBar();
@@ -505,7 +510,34 @@ function renderTransparency() {
   setTransparencyValue.textContent = `${settings.transparency} %`;
 }
 
+// Pastilles de thèmes (prêts à l'emploi, lib/themes.js) : un clic remplace les 4 couleurs.
+function renderThemes() {
+  setThemes.replaceChildren(...THEMES.map((theme) => {
+    const chip = document.createElement('button');
+    chip.className = 'theme-chip';
+    chip.title = theme.name;
+    chip.setAttribute('aria-label', `Thème ${theme.name}`);
+    chip.classList.toggle('is-active', THEME_COLORS.every((key) => settings[key] === theme[key]));
+    for (const key of THEME_COLORS) {
+      const stripe = document.createElement('span');
+      stripe.style.background = theme[key];
+      chip.append(stripe);
+    }
+    chip.addEventListener('click', () => {
+      for (const key of THEME_COLORS) settings[key] = theme[key];
+      applyLook();
+      renderSettings();
+      save();
+    });
+    return chip;
+  }));
+}
+
 function renderSettings() {
+  renderThemes();
+  setBg.value = settings.bg;
+  setSurface.value = settings.surface;
+  setFont.replaceChildren(...FONTS.map((font) => new Option(font.name, font.id, false, font.id === settings.font)));
   setC1.value = settings.c1;
   setC2.value = settings.c2;
   renderTransparency();
@@ -546,8 +578,22 @@ function closeSettings() {
   body.classList.remove('is-settings');
 }
 
-setC1.addEventListener('input', () => { settings.c1 = setC1.value; applyLook(); save(); });
-setC2.addEventListener('input', () => { settings.c2 = setC2.value; applyLook(); save(); });
+// Couleur changée à la main : appliquée tout de suite ; la pastille du thème se met à jour.
+for (const [input, key] of [[setBg, 'bg'], [setSurface, 'surface'], [setC1, 'c1'], [setC2, 'c2']]) {
+  input.addEventListener('input', () => {
+    settings[key] = input.value;
+    applyLook();
+    renderThemes();
+    save();
+  });
+}
+setFont.addEventListener('change', () => {
+  settings.font = setFont.value;
+  applyLook();
+  save();
+  // La largeur de la pilule dépend de la police.
+  document.fonts.ready.then(syncPillWidth);
+});
 setTransparency.addEventListener('input', () => {
   settings.transparency = Number(setTransparency.value);
   renderTransparency();
@@ -601,6 +647,7 @@ document.getElementById('settings-reset').addEventListener('click', async () => 
 window.bar.getSettings().then((loaded) => {
   settings = loaded;
   applyLook();
+  document.fonts.ready.then(syncPillWidth); // la police choisie peut changer la largeur de la pilule
   if (autoHide && !body.classList.contains('is-open')) body.classList.add('is-hidden');
 });
 

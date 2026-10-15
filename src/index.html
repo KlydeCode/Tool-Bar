@@ -96,11 +96,15 @@
       </div>
       <div class="settings-body">
         <div class="card settings-group">
+          <div class="set-row"><span>Thème</span><div class="themes" id="set-themes"></div></div>
+          <label class="set-row"><span>Fond</span><input type="color" id="set-bg"></label>
+          <label class="set-row"><span>Cartes</span><input type="color" id="set-surface"></label>
           <label class="set-row"><span>Couleur 1</span><input type="color" id="set-c1"></label>
           <label class="set-row"><span>Couleur 2</span><input type="color" id="set-c2"></label>
           <label class="set-row"><span>Transparence</span>
             <input type="range" id="set-transparency" min="0" max="70" step="1">
             <span class="set-value" id="set-transparency-value">30 %</span></label>
+          <label class="set-row"><span>Police</span><select class="field" id="set-font"></select></label>
           <label class="set-row"><span>Masquage automatique</span><input type="checkbox" class="switch" id="set-autohide"></label>
           <div class="set-row"><span>Raccourci clavier</span><button class="field key" id="set-shortcut"></button></div>
         </div>
@@ -118,6 +122,7 @@
   </main>
   </div>
   <script src="../lib/media.js"></script>
+  <script src="../lib/themes.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

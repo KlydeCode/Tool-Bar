@@ -10,6 +10,20 @@
   font-weight: 300 700;
 }
 @font-face {
+  font-family: "Pixelify Sans";
+  src: url("../assets/fonts/PixelifySans.ttf") format("truetype");
+  font-weight: 400 700;
+}
+@font-face {
+  font-family: "Silkscreen";
+  src: url("../assets/fonts/Silkscreen-Regular.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Fraunces";
+  src: url("../assets/fonts/Fraunces.ttf") format("truetype");
+  font-weight: 100 900;
+}
+@font-face {
   font-family: "JetBrains Mono";
   src: url("../assets/fonts/JetBrainsMono.ttf") format("truetype");
   font-weight: 100 800;
@@ -19,13 +33,59 @@
   --c1: #8AB4FF;
   --c2: #FFB86B;
   --transparency: 0.12; /* de 0 à 0.7, réglable en phase 9 (35 % jugé trop transparent) */
-  --panel-bg: rgba(10, 10, 11, calc(1 - var(--transparency)));
-  --card-bg: rgba(255, 255, 255, 0.06);
+  /* Couleurs du thème (réglages) : fond du panneau et cartes */
+  --bg: #0a0a0b;
+  --surface: #2c2c31;
+  --panel-bg: color-mix(in srgb, var(--bg) calc((1 - var(--transparency)) * 100%), transparent);
+  --card-bg: color-mix(in srgb, var(--surface) 50%, transparent);
+  /* Police (réglages) : titres et horloge, texte courant, petites étiquettes */
+  --font-display: "Bricolage Grotesque", sans-serif;
+  --font-text: "Uncut Sans", "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --clock-weight: 800;
+  --clock-spacing: -0.05em;
+  --label-spacing: 0.14em;
   --border: rgba(255, 255, 255, 0.1);
   --text: #F4F4F5;
   --text-2: #B4B4BC;
   --on-color: #0A0A0B;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Police « Pixel art » et « Littéraire » (data-font posé par app.js) */
+body[data-font="pixel"] {
+  --font-display: "Pixelify Sans", sans-serif;
+  --font-text: "Pixelify Sans", sans-serif;
+  --font-mono: "Silkscreen", monospace;
+  --clock-weight: 700;
+  --clock-spacing: 0;
+  --label-spacing: 0.04em;
+}
+/* Polices pixel : seules certaines tailles restent nettes (sinon le « C » devient un « O »).
+   Pixelify Sans : 11, 12, 14, 15, 18, 20 px… ; Silkscreen : 8, 9, 12, 16 px. */
+body[data-font="pixel"] .label,
+body[data-font="pixel"] .times,
+body[data-font="pixel"] .tile .num,
+body[data-font="pixel"] .tile-row .num { font-size: 9px; }
+body[data-font="pixel"] .volume-value,
+body[data-font="pixel"] .key,
+body[data-font="pixel"] .set-value { font-size: 12px; }
+body[data-font="pixel"] .title { font-size: 18px; }
+body[data-font="pixel"] .artist,
+body[data-font="pixel"] .pill,
+body[data-font="pixel"] .tile .name,
+body[data-font="pixel"] .field,
+body[data-font="pixel"] .set-row,
+body[data-font="pixel"] .back,
+body[data-font="pixel"] .settings-status { font-size: 14px; }
+
+body[data-font="literary"] {
+  --font-display: "Fraunces", serif;
+  --font-text: "Fraunces", serif;
+  --font-mono: "Fraunces", serif;
+  --clock-weight: 600;
+  --clock-spacing: -0.02em;
+  --label-spacing: 0.12em;
 }
 
 html, body {
@@ -37,7 +97,7 @@ html, body {
 }
 
 body {
-  font-family: "Uncut Sans", "Segoe UI", sans-serif;
+  font-family: var(--font-text);
   color: var(--text);
 }
 
@@ -69,9 +129,9 @@ button:focus-visible, input:focus-visible {
 }
 
 .label {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10.5px;
-  letter-spacing: 0.14em;
+  letter-spacing: var(--label-spacing);
   text-transform: uppercase;
   color: var(--text-2);
 }
@@ -132,7 +192,7 @@ body:not(.has-music) .times,
   color: var(--text-2);
 }
 .pill-time {
-  font-family: "Bricolage Grotesque", sans-serif;
+  font-family: var(--font-display);
   font-size: 15px;
   font-weight: 700;
   color: var(--c2);
@@ -190,7 +250,7 @@ body:not(.has-music) .times,
   z-index: -1;
   pointer-events: none;
   /* Calculé ici (et non via --panel-bg) pour suivre la transparence propre au panneau */
-  background: rgba(10, 10, 11, calc(1 - var(--transparency)));
+  background: color-mix(in srgb, var(--bg) calc((1 - var(--transparency)) * 100%), transparent);
   transition: background-color 0.25s;
 }
 .is-open .panel.has-backdrop { --transparency: var(--open-transparency, 0.3); } /* réglable (app.js) */
@@ -253,7 +313,7 @@ body:not(.has-music) .times,
 .cover .icon { width: 24px; height: 24px; stroke-width: 2; }
 .track-text { flex: 1; min-width: 0; }
 .title {
-  font-family: "Bricolage Grotesque", sans-serif;
+  font-family: var(--font-display);
   font-size: 19px;
   font-weight: 700;
   white-space: nowrap;
@@ -360,7 +420,7 @@ body:not(.is-playing) .icon-pause,
   display: flex;
   justify-content: space-between;
   margin-top: 8px;
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-2);
 }
@@ -387,10 +447,10 @@ body:not(.is-playing) .icon-pause,
 .collapse:hover { color: var(--c2); background: rgba(255, 255, 255, 0.08); }
 .collapse .icon { width: 16px; height: 16px; }
 .time {
-  font-family: "Bricolage Grotesque", sans-serif;
+  font-family: var(--font-display);
   font-size: 60px;
-  font-weight: 800;
-  letter-spacing: -0.05em;
+  font-weight: var(--clock-weight);
+  letter-spacing: var(--clock-spacing);
   line-height: 1;
 }
 .colon { color: var(--c2); }
@@ -404,7 +464,7 @@ body:not(.is-playing) .icon-pause,
 }
 .tiles {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(6, minmax(0, 1fr)); /* colonnes égales, même avec un long nom */
   gap: 10px;
 }
 .tile {
@@ -425,14 +485,18 @@ body:not(.is-playing) .icon-pause,
   position: absolute;
   top: 9px;
   left: 12px;
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-2);
 }
 .tile .name {
+  max-width: 100%;
+  padding: 0 6px;
   font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .tile img.icon { width: 24px; height: 24px; }
 .tile .icon { transition: transform 0.3s var(--ease-out), color 0.2s; }
@@ -458,7 +522,7 @@ body:not(.is-playing) .icon-pause,
 .volume-value {
   width: 34px;
   text-align: right;
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 600;
   margin-right: 6px;
@@ -485,7 +549,7 @@ input[type="range"]::-webkit-slider-thumb {
   margin-top: -5px;
   border-radius: 50%;
   background: var(--c1);
-  box-shadow: 0 0 0 3px rgba(10, 10, 11, 0.6);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bg) 60%, transparent);
 }
 
 .mic {
@@ -628,7 +692,7 @@ input[type="range"]::-webkit-slider-thumb {
 .set-value {
   width: 42px;
   text-align: right;
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-2);
 }
@@ -683,8 +747,8 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 5px; }
 }
 .field:hover { border-color: rgba(255, 255, 255, 0.25); }
 .field:focus { outline: none; border-color: var(--c2); }
-select.field option { background: #1a1a1d; }
-.key { font-family: "JetBrains Mono", monospace; font-size: 12px; }
+select.field option { background: var(--bg); }
+.key { font-family: var(--font-mono); font-size: 12px; }
 .key.is-recording { border-color: var(--c2); color: var(--c2); }
 .danger:hover { border-color: #ff6b6b; color: #ff8a8a; }
 
@@ -701,7 +765,7 @@ select.field option { background: #1a1a1d; }
   align-items: center;
 }
 .tile-row .num {
-  font-family: "JetBrains Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-2);
 }
@@ -713,6 +777,20 @@ select.field option { background: #1a1a1d; }
   text-align: left;
 }
 .tile-row .target.is-invalid { border-color: #ff6b6b; }
+/* Thèmes : une pastille par thème, avec ses 4 couleurs */
+.themes { display: flex; gap: 8px; }
+.theme-chip {
+  width: 44px;
+  height: 28px;
+  display: flex;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  outline: 1px solid var(--border);
+}
+.theme-chip span { flex: 1; }
+.theme-chip.is-active { border-color: var(--text); }
+.theme-chip:hover { outline-color: var(--text-2); }
 .icon-btn {
   width: 30px;
   height: 30px;
