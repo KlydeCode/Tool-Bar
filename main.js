@@ -8,11 +8,12 @@ const { loadConfig, saveConfig } = require('./lib/config');
 const { parseMedia } = require('./lib/media');
 const { isPackageName, packageIconFile, resolveShortcut } = require('./lib/launch');
 const { topCenter } = require('./lib/position');
-const { cleanSettings } = require('./lib/settings');
+const { parseApps, searchApps } = require('./lib/search');
+const { MAX_TILES, cleanSettings } = require('./lib/settings');
 
 // Taille fixe = panneau déplié (680 px) + marge ; la pilule est dessinée dedans.
 const WIDTH = 720;
-const HEIGHT = 440;
+const HEIGHT = 700; // jusqu'à 3 rangées de tuiles + la recherche
 
 let win = null;
 
@@ -208,14 +209,17 @@ function resetSettings(event) {
   return saveSettings(event, DEFAULTS);
 }
 
-// Choix d'une appli (.exe) ou d'un dossier pour une tuile, avec la fenêtre de Windows.
+// Choix d'une appli, d'un fichier ou d'un dossier pour une tuile, avec la fenêtre de Windows.
+const PICKERS = {
+  app: { title: 'Choisir une appli', properties: ['openFile'], filters: [{ name: 'Applis et raccourcis', extensions: ['exe', 'lnk', 'appref-ms'] }] },
+  file: { title: 'Choisir un fichier', properties: ['openFile'] },
+  folder: { title: 'Choisir un dossier', properties: ['openDirectory'] },
+};
 async function pickTarget(_event, kind) {
-  if (kind !== 'app' && kind !== 'folder') return null;
+  if (!Object.hasOwn(PICKERS, kind)) return null;
   picking = true;
   try {
-    const result = await dialog.showOpenDialog(win, kind === 'app'
-      ? { title: 'Choisir une appli', properties: ['openFile'], filters: [{ name: 'Applications', extensions: ['exe'] }] }
-      : { title: 'Choisir un dossier', properties: ['openDirectory'] });
+    const result = await dialog.showOpenDialog(win, PICKERS[kind]);
     return result.canceled ? null : (result.filePaths[0] ?? null);
   } finally {
     picking = false;
@@ -263,7 +267,8 @@ async function iconPath(shortcut) {
 async function describeShortcuts() {
   return Promise.all(config.shortcuts.map(async (shortcut) => {
     const name = typeof shortcut?.name === 'string' ? shortcut.name.slice(0, 40) : '';
-    const type = shortcut.type; // déjà vérifié par cleanSettings : app, folder, url ou settings
+    const type = shortcut.type; // déjà vérifié par cleanSettings
+    if (type === 'startapp') return { name, type, icon: await appIcon(await startAppIndex(shortcut.appId)) };
     const file = await iconPath(shortcut);
     let icon = null;
     if (file) {
@@ -277,9 +282,89 @@ async function describeShortcuts() {
   }));
 }
 
+// ---------- Applis du PC (recherche) ----------
+// Liste du menu Démarrer, gardée ici et dans le script (mêmes numéros), relue toutes les 5 minutes au plus.
+const APPS_MAX_AGE = 5 * 60 * 1000;
+let apps = [];
+let appsAt = 0;
+let appsLoading = null;
+const appIcons = new Map(); // identifiant de l'appli → icône
+
+function loadApps(force = false) {
+  if (!force && apps.length && Date.now() - appsAt < APPS_MAX_AGE) return Promise.resolve(apps);
+  appsLoading ??= ask('apps').then((line) => {
+    const list = parseApps(line);
+    if (list.length) {
+      apps = list;
+      appsAt = Date.now();
+    }
+    return apps;
+  }).finally(() => {
+    appsLoading = null;
+  });
+  return appsLoading;
+}
+
+function isAppIndex(index) {
+  return Number.isInteger(index) && index >= 0 && index < apps.length;
+}
+
+async function appIcon(index) {
+  if (!isAppIndex(index)) return null;
+  const { id } = apps[index];
+  if (!appIcons.has(id)) {
+    const base64 = await ask(`app-icon ${index}`);
+    if (!base64) return null;
+    appIcons.set(id, `data:image/png;base64,${base64}`);
+  }
+  return appIcons.get(id);
+}
+
+// Lance une appli du menu Démarrer par son identifiant Windows (argument unique, pas de commande).
+function openStartApp(id) {
+  spawn('explorer.exe', [`shell:AppsFolder\\${id}`], { detached: true, stdio: 'ignore' }).unref();
+}
+
+async function searchPcApps(_event, query) {
+  if (typeof query !== 'string' || query.length > 100) return [];
+  await loadApps();
+  return searchApps(apps, query).map(({ index }) => ({ index, name: apps[index].name }));
+}
+
+function launchApp(_event, index) {
+  if (!isAppIndex(index)) return false;
+  openStartApp(apps[index].id);
+  return true;
+}
+
+// Ajoute l'appli trouvée en tuile (juste avant la tuile Réglages si elle est en dernier).
+function pinApp(event, index) {
+  if (!isAppIndex(index)) return { ok: false, error: 'Appli introuvable.', settings: config };
+  if (config.shortcuts.length >= MAX_TILES) return { ok: false, error: `${MAX_TILES} tuiles au maximum.`, settings: config };
+  const tile = { name: apps[index].name.slice(0, 40), type: 'startapp', appId: apps[index].id };
+  const shortcuts = [...config.shortcuts];
+  const last = shortcuts.length - 1;
+  shortcuts.splice(shortcuts[last]?.type === 'settings' ? last : shortcuts.length, 0, tile);
+  return saveSettings(event, { ...config, shortcuts });
+}
+
+// Tuile « startapp » : l'identifiant doit toujours exister dans la liste de Windows.
+async function startAppIndex(appId) {
+  let index = (await loadApps()).findIndex((a) => a.id === appId);
+  if (index === -1) index = (await loadApps(true)).findIndex((a) => a.id === appId);
+  return index;
+}
+
 async function launchShortcut(_event, index) {
   if (!Number.isInteger(index) || index < 0 || index >= config.shortcuts.length) return false;
-  const target = resolveTarget(config.shortcuts[index]);
+  const shortcut = config.shortcuts[index];
+  if (shortcut.type === 'startapp') {
+    const found = await startAppIndex(shortcut.appId);
+    if (found === -1) return false;
+    openStartApp(apps[found].id);
+    return true;
+  }
+  const target = resolveTarget(shortcut);
   if (!target) {
     console.error(`Raccourci ${index + 1} : cible introuvable ou refusée.`);
     return false;
@@ -300,6 +385,7 @@ function start() {
     loadSettings();
     createWindow();
     startHelper(); // prêt avant le premier survol
+    loadApps(); // liste des applis prête pour la première recherche
     registerShortcut(config.toggleShortcut);
 
     for (const event of ['display-added', 'display-removed', 'display-metrics-changed']) {
@@ -321,6 +407,10 @@ function start() {
   ipcMain.handle('bar:media-control', mediaControl);
   ipcMain.handle('bar:shortcuts', describeShortcuts);
   ipcMain.handle('bar:launch', launchShortcut);
+  ipcMain.handle('bar:search-apps', searchPcApps);
+  ipcMain.handle('bar:app-icon', (_event, index) => appIcon(index));
+  ipcMain.handle('bar:launch-app', launchApp);
+  ipcMain.handle('bar:pin-app', pinApp);
   ipcMain.on('bar:interactive', (_event, on) => {
     win?.setIgnoreMouseEvents(on !== true, { forward: true });
   });

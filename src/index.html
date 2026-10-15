@@ -16,7 +16,7 @@
   </button>
 
   <main class="panel" id="panel">
-    <canvas class="backdrop" id="backdrop" width="180" height="110" aria-hidden="true"></canvas>
+    <canvas class="backdrop" id="backdrop" width="180" height="175" aria-hidden="true"></canvas>
     <div class="top">
       <section class="card music" aria-label="Musique">
         <div class="card-head">
@@ -60,31 +60,21 @@
       </section>
     </div>
 
+    <!-- Recherche d'applis du PC -->
+    <label class="search">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="search" id="search" placeholder="Rechercher une appli…" autocomplete="off" spellcheck="false" aria-label="Rechercher une appli">
+    </label>
+
     <div class="section-head">
-      <span class="label">Raccourcis</span>
+      <span class="label" id="tiles-label">Raccourcis</span>
       <span class="label" id="tile-count">06</span>
     </div>
 
-    <nav class="tiles" aria-label="Raccourcis">
-      <button class="tile"><span class="num">01</span>
-        <svg class="icon" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-        <span class="name">VS Code</span></button>
-      <button class="tile"><span class="num">02</span>
-        <svg class="icon" viewBox="0 0 24 24"><path d="M12 17V3"/><path d="m6 11 6 6 6-6"/><path d="M19 21H5"/></svg>
-        <span class="name">Téléchargements</span></button>
-      <button class="tile"><span class="num">03</span>
-        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
-        <span class="name">Navigateur</span></button>
-      <button class="tile"><span class="num">04</span>
-        <svg class="icon" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
-        <span class="name">Claude</span></button>
-      <button class="tile"><span class="num">05</span>
-        <svg class="icon" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>
-        <span class="name">Terminal</span></button>
-      <button class="tile"><span class="num">06</span>
-        <svg class="icon" viewBox="0 0 24 24"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/></svg>
-        <span class="name">Réglages</span></button>
-    </nav>
+    <!-- Tuiles (remplies par app.js depuis la config ; glisser-déposer pour les déplacer) -->
+    <nav class="tiles" id="tiles" aria-label="Raccourcis"></nav>
+    <!-- Résultats de la recherche, à la place des tuiles -->
+    <div class="tiles results" id="results" aria-label="Applis trouvées"></div>
 
     <section class="card volume" aria-label="Volume">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/></svg>

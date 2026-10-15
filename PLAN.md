@@ -107,6 +107,13 @@ La tuile 06 ouvre les réglages dans le panneau : couleurs, transparence (du pan
 
 - [x] 9.1 Panneau de réglages (couleurs, transparence, raccourcis, auto-masquage), enregistrés dans `userData` et appliqués en direct.
 
+### Ajouts avant l'installateur (demandés par l'utilisateur)
+- [x] Pictogramme de dossier simple pour les tuiles dossier.
+- [x] Tuiles : jusqu'à 18, ordre libre, types appli / fichier / dossier / site / appli du PC (testé).
+- [x] Panneau : tuiles construites depuis la config, glisser-déposer pour les déplacer ; fenêtre agrandie (700 px) pour 3 rangées.
+- [x] Réglages : ajouter, supprimer, monter / descendre une tuile.
+- [x] Recherche d'applis du PC : liste du menu Démarrer + icônes par `helpers/windows.ps1`, recherche sans accents (testée), lancer, épingler.
+
 ### Phase 10 : Finitions
 - [ ] 10.1 Lancement au démarrage (`app.setLoginItemSettings`).
 - [ ] 10.2 Installateur `.exe` (outil à valider) + `shipping-and-launch`.

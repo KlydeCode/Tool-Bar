@@ -177,7 +177,7 @@ body:not(.has-music) .times,
   left: -21px;
   top: -9px;
   width: 720px;
-  height: 440px;
+  height: 100vh;
   z-index: -1;
   pointer-events: none;
   opacity: 0;
@@ -500,9 +500,76 @@ input[type="range"]::-webkit-slider-thumb {
 .mic:hover { background: rgba(255, 255, 255, 0.14); }
 .mic.is-muted { background: var(--c2); color: var(--on-color); }
 
+/* ---------- Recherche d'applis ---------- */
+.search {
+  height: 44px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 16px;
+  background: var(--card-bg);
+  border: 1px solid transparent;
+  color: var(--text-2);
+  cursor: text;
+  transition: border-color 0.2s;
+}
+.search:focus-within { border-color: var(--c2); }
+.search .icon { width: 18px; height: 18px; }
+.search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+.search input::placeholder { color: var(--text-2); }
+.search input::-webkit-search-cancel-button { display: none; }
+
+#results { display: none; }
+.is-searching #tiles { display: none; }
+.is-searching #results { display: grid; }
+#results:empty::after {
+  content: "Aucune appli trouvée";
+  grid-column: 1 / -1;
+  padding: 24px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.result-item { position: relative; display: grid; }
+.tile.is-selected { border-color: var(--c2); }
+/* Épingler l'appli trouvée en tuile */
+.pin {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--text-2);
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+.result-item:hover .pin, .pin:focus-visible, .pin.is-done { opacity: 1; }
+.pin:hover { color: var(--c2); background: rgba(255, 255, 255, 0.1); }
+.pin.is-done { color: var(--c2); }
+.pin .icon { width: 15px; height: 15px; }
+
+/* Glisser-déposer des tuiles */
+.tile.is-dragging { opacity: 0.4; }
+.tile.is-drop-target { border-color: var(--c1); }
+
 /* ---------- Réglages ---------- */
 .settings { display: none; }
 .is-settings .top,
+.is-settings .search,
 .is-settings .section-head,
 .is-settings .tiles,
 .is-settings .volume { display: none; }
@@ -510,7 +577,7 @@ input[type="range"]::-webkit-slider-thumb {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  height: 342px; /* même hauteur que le panneau normal */
+  height: 400px;
 }
 .settings-head {
   display: flex;
@@ -629,7 +696,7 @@ select.field option { background: #1a1a1d; }
 }
 .tile-row {
   display: grid;
-  grid-template-columns: 22px 150px 120px 1fr;
+  grid-template-columns: 22px 130px 112px 1fr repeat(3, 30px);
   gap: 8px;
   align-items: center;
 }
@@ -646,6 +713,19 @@ select.field option { background: #1a1a1d; }
   text-align: left;
 }
 .tile-row .target.is-invalid { border-color: #ff6b6b; }
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--text-2);
+}
+.icon-btn:hover:not(:disabled) { color: var(--c2); background: rgba(255, 255, 255, 0.08); }
+.icon-btn:disabled { opacity: 0.25; cursor: default; }
+.icon-btn .icon { width: 15px; height: 15px; }
+.tile-row .fixed { font-size: 13px; color: var(--text-2); padding: 0 12px; }
+.add-tile { align-self: flex-start; margin-top: 4px; }
 .settings-status {
   min-height: 16px;
   margin: 0;

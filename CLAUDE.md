@@ -103,6 +103,13 @@ et que l'utilisateur a validé à l'écran ce qui ne peut être vérifié que su
 9. **Réglages** : panneau pour les deux couleurs, la transparence, les raccourcis, l'auto-masquage ; enregistrés et rechargés au démarrage.
 10. **Finitions** : lancement au démarrage de Windows (option), création d'un installateur `.exe`.
 
+Ajouts demandés après la phase 9 (avant l'installateur) :
+- **Tuiles libres** : jusqu'à 18 (3 rangées de 6), déplaçables (glisser-déposer dans le panneau, flèches dans les réglages),
+  ajout / suppression ; cible = appli (.exe, .lnk), fichier, dossier, site (http/https) ou appli trouvée par la recherche.
+  Dossiers : simple pictogramme de dossier.
+- **Recherche d'applis du PC** dans le panneau (liste du menu Démarrer via `Get-StartApps`, icônes via Windows) ;
+  Entrée lance, flèches pour choisir, épingle pour ajouter en tuile. Alt+Maj+Espace ouvre la barre avec le curseur dans la recherche.
+
 Hors périmètre pour l'instant : l'API Claude (pas de clé API), Mac/Linux.
 
 ## Méthode de travail (agent-skills)

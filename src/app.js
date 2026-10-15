@@ -25,6 +25,7 @@ function setOpen(open) {
       if (body.classList.contains('is-open')) return;
       panel.classList.remove('has-backdrop');
       closeSettings();
+      clearSearch();
     }, 600);
   }
 }
@@ -57,7 +58,11 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !recordingShortcut) setOpen(false);
 });
 // Alt+Maj+Espace (raccourci global, main.js) et perte du focus.
-window.bar.onToggle(() => setOpen(!body.classList.contains('is-open')));
+window.bar.onToggle(() => {
+  const open = !body.classList.contains('is-open');
+  setOpen(open);
+  if (open && !body.classList.contains('is-settings')) searchInput.focus();
+});
 window.bar.onClose(() => setOpen(false));
 
 // ---------- Auto-masquage (option de la config) ----------
@@ -106,6 +111,7 @@ document.addEventListener('mousemove', (event) => {
 // floutée une fois dans un canvas (le flou CSS « filter » n'est pas appliqué à l'écran
 // dans une fenêtre transparente sous Windows).
 const backdrop = document.getElementById('backdrop');
+backdrop.height = Math.round(window.innerHeight / 4);
 const BLUR = 7; // en pixels du canvas, qui fait 1/4 de la fenêtre (agrandi en CSS)
 let backdropPending = false;
 
@@ -132,56 +138,200 @@ function refreshBackdrop() {
 }
 
 // ---------- Raccourcis d'applis ----------
-// Les tuiles prennent le nom et la vraie icône de la config (main.js) ; sinon un pictogramme selon le type.
-const tiles = [...document.querySelectorAll('.tile')];
+// Tuiles construites depuis la config (main.js) : nom, vraie icône des applis, sinon un pictogramme.
+// On les déplace par glisser-déposer ; le nouvel ordre est enregistré.
+const tilesEl = document.getElementById('tiles');
+const tileCount = document.getElementById('tile-count');
 const SYMBOLS = {
   app: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/>',
+  file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
   folder: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
   url: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
   settings: '<line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/>',
+  pin: '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  up: '<path d="m18 15-6-6-6 6"/>',
+  down: '<path d="m6 9 6 6 6-6"/>',
+  remove: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
 };
 
-function tileIcon(shortcut) {
-  if (shortcut.icon) {
-    const img = document.createElement('img');
-    img.className = 'icon';
-    img.src = shortcut.icon;
-    img.alt = '';
-    return img;
-  }
+// Pictogramme fixe (jamais du texte de la config dans innerHTML).
+function symbol(name) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('class', 'icon');
   svg.setAttribute('viewBox', '0 0 24 24');
-  svg.innerHTML = SYMBOLS[shortcut.type] ?? SYMBOLS.app; // pictogrammes fixes ci-dessus, jamais du texte de la config
+  svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = SYMBOLS[name] ?? SYMBOLS.app;
   return svg;
+}
+
+function iconImage(src) {
+  const img = document.createElement('img');
+  img.className = 'icon';
+  img.src = src;
+  img.alt = '';
+  return img;
+}
+
+function makeTile(number, name, icon) {
+  const tile = document.createElement('button');
+  tile.className = 'tile';
+  const num = document.createElement('span');
+  num.className = 'num';
+  num.textContent = String(number).padStart(2, '0');
+  const label = document.createElement('span');
+  label.className = 'name';
+  label.textContent = name;
+  tile.append(num, icon, label);
+  return tile;
+}
+
+let dragFrom = null;
+
+function moveTile(from, to) {
+  if (from === to || !settings) return;
+  const [tile] = settings.shortcuts.splice(from, 1);
+  settings.shortcuts.splice(to, 0, tile);
+  save();
 }
 
 async function refreshTiles() {
   const shortcuts = await window.bar.getShortcuts();
-  tiles.forEach((tile, index) => {
-    const shortcut = shortcuts[index];
-    tile.hidden = !shortcut;
-    if (!shortcut) return;
-    tile.dataset.type = shortcut.type;
-    tile.querySelector('.name').textContent = shortcut.name;
-    tile.querySelector('.icon').replaceWith(tileIcon(shortcut));
-  });
-  document.getElementById('tile-count').textContent = String(shortcuts.length).padStart(2, '0');
+  tilesEl.replaceChildren(...shortcuts.map((shortcut, index) => {
+    const tile = makeTile(index + 1, shortcut.name, shortcut.icon ? iconImage(shortcut.icon) : symbol(shortcut.type));
+    tile.draggable = true;
+    tile.addEventListener('click', async () => {
+      if (shortcut.type === 'settings') openSettings();
+      else if (await window.bar.launch(index)) setOpen(false);
+    });
+    tile.addEventListener('dragstart', (event) => {
+      dragFrom = index;
+      event.dataTransfer.effectAllowed = 'move';
+      tile.classList.add('is-dragging');
+    });
+    tile.addEventListener('dragend', () => {
+      dragFrom = null;
+      tile.classList.remove('is-dragging');
+    });
+    tile.addEventListener('dragover', (event) => {
+      if (dragFrom === null) return;
+      event.preventDefault();
+      tile.classList.add('is-drop-target');
+    });
+    tile.addEventListener('dragleave', () => tile.classList.remove('is-drop-target'));
+    tile.addEventListener('drop', (event) => {
+      event.preventDefault();
+      tile.classList.remove('is-drop-target');
+      if (dragFrom !== null) moveTile(dragFrom, index);
+    });
+    return tile;
+  }));
+  if (!body.classList.contains('is-searching')) tileCount.textContent = String(shortcuts.length).padStart(2, '0');
+  if (!body.classList.contains('is-open')) syncPillWidth();
 }
 
-tiles.forEach((tile, index) => {
-  tile.addEventListener('click', async () => {
-    if (tile.dataset.type === 'settings') openSettings();
-    else if (await window.bar.launch(index)) setOpen(false);
-  });
+refreshTiles();
+
+// ---------- Recherche d'applis du PC ----------
+// On tape, les applis trouvées remplacent les tuiles. Entrée lance la sélection, flèches pour choisir,
+// Échap efface. L'épingle ajoute l'appli aux tuiles.
+const searchInput = document.getElementById('search');
+const resultsEl = document.getElementById('results');
+const tilesLabel = document.getElementById('tiles-label');
+const SEARCH_DELAY = 80; // ms : laisse finir la frappe avant de chercher
+let searchTimer = null;
+let results = [];
+let selected = 0;
+let searchId = 0;
+
+function clearSearch() {
+  searchInput.value = '';
+  results = [];
+  resultsEl.replaceChildren();
+  body.classList.remove('is-searching');
+  tilesLabel.textContent = 'Raccourcis';
+  tileCount.textContent = String(tilesEl.children.length).padStart(2, '0');
+}
+
+function selectResult(index) {
+  selected = index;
+  [...resultsEl.children].forEach((item, i) => item.firstChild.classList.toggle('is-selected', i === index));
+}
+
+function launchResult(index) {
+  if (!results[index]) return;
+  window.bar.launchApp(results[index].index);
+  clearSearch();
+  setOpen(false);
+}
+
+function renderResults() {
+  resultsEl.replaceChildren(...results.map((result, i) => {
+    const icon = symbol('app');
+    const tile = makeTile(i + 1, result.name, icon);
+    tile.addEventListener('click', () => launchResult(i));
+    window.bar.getAppIcon(result.index).then((src) => {
+      if (src) icon.replaceWith(iconImage(src));
+    });
+    const pin = document.createElement('button');
+    pin.className = 'pin';
+    pin.title = 'Ajouter aux raccourcis';
+    pin.setAttribute('aria-label', `Ajouter ${result.name} aux raccourcis`);
+    pin.append(symbol('pin'));
+    pin.addEventListener('click', async () => {
+      const answer = await window.bar.pinApp(result.index);
+      settings = answer.settings;
+      if (!answer.ok) {
+        pin.title = answer.error;
+        return;
+      }
+      pin.classList.add('is-done');
+      pin.replaceChildren(symbol('check'));
+      refreshTiles();
+    });
+    const item = document.createElement('div');
+    item.className = 'result-item';
+    item.append(tile, pin);
+    return item;
+  }));
+  selectResult(0);
+}
+
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  const query = searchInput.value.trim();
+  if (!query) return clearSearch();
+  body.classList.add('is-searching');
+  tilesLabel.textContent = 'Applis';
+  searchTimer = setTimeout(async () => {
+    const id = ++searchId;
+    const found = await window.bar.searchApps(query);
+    if (id !== searchId) return; // une frappe plus récente a déjà relancé la recherche
+    results = found;
+    renderResults();
+    tileCount.textContent = String(results.length).padStart(2, '0');
+  }, SEARCH_DELAY);
 });
 
-refreshTiles();
+searchInput.addEventListener('keydown', (event) => {
+  const columns = 6;
+  const moves = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: columns, ArrowUp: -columns };
+  if (event.key === 'Escape' && searchInput.value) {
+    event.stopPropagation(); // efface la recherche sans fermer la barre
+    clearSearch();
+  } else if (event.key === 'Enter') {
+    launchResult(selected);
+  } else if (moves[event.key] && results.length) {
+    event.preventDefault();
+    selectResult(Math.min(results.length - 1, Math.max(0, selected + moves[event.key])));
+  }
+});
 
 // ---------- Réglages ----------
 // Chaque changement est envoyé à main.js, qui vérifie, enregistre et renvoie les réglages retenus.
 const KEY_NAMES = { Control: 'Ctrl', Shift: 'Maj', Super: 'Win', Space: 'Espace' };
-const TYPE_NAMES = { app: 'Appli', folder: 'Dossier', url: 'Site web' };
+const TYPE_NAMES = { app: 'Appli', file: 'Fichier', folder: 'Dossier', url: 'Site web' };
+const MAX_TILES = 18;
 const SAVE_DELAY = 250; // ms : regroupe les changements rapides (curseur, couleur)
 const setC1 = document.getElementById('set-c1');
 const setC2 = document.getElementById('set-c2');
@@ -219,21 +369,44 @@ function fileName(fullPath) {
   return fullPath.split(/[\\/]/).filter(Boolean).pop() ?? fullPath;
 }
 
-function isHttps(value) {
+function isWebUrl(value) {
   try {
-    return new URL(value).protocol === 'https:';
+    return ['https:', 'http:'].includes(new URL(value).protocol);
   } catch {
     return false;
   }
 }
 
-// Ligne d'une tuile : nom, type (appli, dossier, site web) et cible.
-function tileRow(tile, index) {
+function iconButton(name, label, onClick, disabled = false) {
+  const button = document.createElement('button');
+  button.className = 'icon-btn';
+  button.setAttribute('aria-label', label);
+  button.title = label;
+  button.disabled = disabled;
+  button.append(symbol(name));
+  button.addEventListener('click', onClick);
+  return button;
+}
+
+// Ligne d'une tuile : nom, type, cible, puis monter / descendre / supprimer.
+function tileRow(tile, index, count) {
   const row = document.createElement('div');
   row.className = 'tile-row';
   const num = document.createElement('span');
   num.className = 'num';
   num.textContent = String(index + 1).padStart(2, '0');
+  const moveUp = iconButton('up', 'Monter', () => { moveTile(index, index - 1); renderSettings(); }, index === 0);
+  const moveDown = iconButton('down', 'Descendre', () => { moveTile(index, index + 1); renderSettings(); }, index === count - 1);
+
+  if (tile.type === 'settings') {
+    // La tuile Réglages se déplace mais ne se modifie pas et ne se supprime pas.
+    const fixed = document.createElement('span');
+    fixed.className = 'fixed';
+    fixed.textContent = 'Réglages (cette page)';
+    fixed.style.gridColumn = 'span 3';
+    row.append(num, fixed, moveUp, moveDown, document.createElement('span'));
+    return row;
+  }
 
   const name = document.createElement('input');
   name.className = 'field';
@@ -248,11 +421,12 @@ function tileRow(tile, index) {
   const type = document.createElement('select');
   type.className = 'field';
   type.setAttribute('aria-label', `Type de la tuile ${index + 1}`);
+  if (tile.type === 'startapp') type.add(new Option('Appli du PC', 'startapp', false, true));
   for (const [value, label] of Object.entries(TYPE_NAMES)) type.add(new Option(label, value, false, value === tile.type));
   type.addEventListener('change', async () => {
     if (type.value === 'url') {
       // Le site n'est enregistré qu'une fois l'adresse saisie (sinon la tuile serait refusée).
-      row.replaceChild(urlInput(index, tile.name, ''), row.lastChild);
+      row.replaceChild(urlInput(index, tile.name, ''), row.children[3]);
       return;
     }
     const picked = await window.bar.pickTarget(type.value);
@@ -263,11 +437,23 @@ function tileRow(tile, index) {
     replaceTile(index, { name: tile.name, type: type.value, paths: [picked] });
   });
 
-  row.append(num, name, type, tile.type === 'url' ? urlInput(index, tile.name, tile.url) : pickButton(tile, index));
+  const remove = iconButton('remove', 'Supprimer la tuile', () => {
+    settings.shortcuts.splice(index, 1);
+    renderSettings();
+    save();
+  });
+  row.append(num, name, type, targetField(tile, index), moveUp, moveDown, remove);
   return row;
 }
 
-function pickButton(tile, index) {
+function targetField(tile, index) {
+  if (tile.type === 'url') return urlInput(index, tile.name, tile.url);
+  if (tile.type === 'startapp') {
+    const label = document.createElement('span');
+    label.className = 'fixed';
+    label.textContent = 'Depuis la recherche';
+    return label;
+  }
   const button = document.createElement('button');
   button.className = 'field target';
   button.textContent = tile.paths[0].includes('%') ? 'Par défaut' : fileName(tile.paths[0]);
@@ -288,16 +474,27 @@ function urlInput(index, name, value) {
   input.setAttribute('aria-label', `Adresse du site de la tuile ${index + 1}`);
   input.addEventListener('change', () => {
     const url = input.value.trim();
-    const ok = isHttps(url);
+    const ok = isWebUrl(url);
     input.classList.toggle('is-invalid', !ok);
     if (ok) replaceTile(index, { name, type: 'url', url });
-    else setStatus('Adresse refusée : elle doit commencer par https://', true);
+    else setStatus('Adresse refusée : elle doit commencer par https:// ou http://', true);
   });
   return input;
 }
 
 function replaceTile(index, tile) {
   settings.shortcuts[index] = tile;
+  renderSettings();
+  save();
+}
+
+// Nouvelle tuile : on choisit d'abord l'appli ; le type se change ensuite sur la ligne.
+async function addTile() {
+  if (settings.shortcuts.length >= MAX_TILES) return setStatus(`${MAX_TILES} tuiles au maximum.`, true);
+  const picked = await window.bar.pickTarget('app');
+  if (!picked) return;
+  const name = fileName(picked).replace(/\.(exe|lnk|appref-ms)$/i, '');
+  settings.shortcuts.push({ name, type: 'app', paths: [picked] });
   renderSettings();
   save();
 }
@@ -314,9 +511,13 @@ function renderSettings() {
   renderTransparency();
   setAutoHide.checked = settings.autoHide;
   setShortcut.textContent = shortcutLabel(settings.toggleShortcut);
-  setTiles.replaceChildren(...settings.shortcuts
-    .filter((tile) => tile.type !== 'settings')
-    .map((tile, index) => tileRow(tile, index)));
+  const count = settings.shortcuts.length;
+  const add = document.createElement('button');
+  add.className = 'field add-tile';
+  add.textContent = '+ Ajouter une tuile';
+  add.disabled = count >= MAX_TILES;
+  add.addEventListener('click', addTile);
+  setTiles.replaceChildren(...settings.shortcuts.map((tile, index) => tileRow(tile, index, count)), add);
 }
 
 function save() {
