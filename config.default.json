@@ -1,5 +1,9 @@
 {
+  "c1": "#8ab4ff",
+  "c2": "#ffb86b",
+  "transparency": 30,
   "autoHide": false,
+  "toggleShortcut": "Alt+Shift+Space",
   "shortcuts": [
     {
       "name": "VS Code",

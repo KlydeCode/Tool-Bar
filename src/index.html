@@ -7,7 +7,6 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Clic droit sur la barre : quitter (provisoire, jusqu'aux réglages). -->
   <!-- Conteneur glissé hors de l'écran quand l'auto-masquage est actif -->
   <div class="bar">
   <button class="pill" id="pill" aria-label="Ouvrir la barre" aria-expanded="false">
@@ -95,6 +94,36 @@
       <button class="mic" id="mic" aria-label="Couper le micro">
         <svg class="icon" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
       </button>
+    </section>
+    <!-- Réglages : remplacent le contenu du panneau (tuile 06) -->
+    <section class="settings" id="settings" aria-label="Réglages">
+      <div class="settings-head">
+        <span class="label">Réglages</span>
+        <button class="back" id="settings-back" aria-label="Retour">
+          <svg class="icon" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+          <span>Retour</span>
+        </button>
+      </div>
+      <div class="settings-body">
+        <div class="card settings-group">
+          <label class="set-row"><span>Couleur 1</span><input type="color" id="set-c1"></label>
+          <label class="set-row"><span>Couleur 2</span><input type="color" id="set-c2"></label>
+          <label class="set-row"><span>Transparence</span>
+            <input type="range" id="set-transparency" min="0" max="70" step="1">
+            <span class="set-value" id="set-transparency-value">30 %</span></label>
+          <label class="set-row"><span>Masquage automatique</span><input type="checkbox" class="switch" id="set-autohide"></label>
+          <div class="set-row"><span>Raccourci clavier</span><button class="field key" id="set-shortcut"></button></div>
+        </div>
+        <div class="card settings-group">
+          <span class="label">Tuiles</span>
+          <div class="set-tiles" id="set-tiles"></div>
+        </div>
+        <p class="settings-status" id="settings-status" role="status"></p>
+        <div class="settings-actions">
+          <button class="field" id="settings-reset">Réglages par défaut</button>
+          <button class="field danger" id="settings-quit">Quitter la barre</button>
+        </div>
+      </div>
     </section>
   </main>
   </div>

@@ -6,6 +6,11 @@ contextBridge.exposeInMainWorld('bar', {
   setInteractive: (on) => ipcRenderer.send('bar:interactive', on === true),
   getBackdrop: () => ipcRenderer.invoke('bar:backdrop'),
   getSettings: () => ipcRenderer.invoke('bar:settings'),
+  // Réglages vérifiés par main.js ; réponse { ok, error?, settings }.
+  saveSettings: (settings) => ipcRenderer.invoke('bar:save-settings', settings),
+  resetSettings: () => ipcRenderer.invoke('bar:reset-settings'),
+  // « app » ou « folder » : ouvre la fenêtre de choix de Windows, renvoie le chemin ou null.
+  pickTarget: (kind) => ipcRenderer.invoke('bar:pick', kind),
   getShortcuts: () => ipcRenderer.invoke('bar:shortcuts'),
   getAudio: () => ipcRenderer.invoke('bar:audio'),
   setVolume: (percent) => ipcRenderer.invoke('bar:volume', percent),

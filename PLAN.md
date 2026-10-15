@@ -102,7 +102,10 @@ Choix (expliqué à l'utilisateur) : API Windows des contrôles multimédias (`G
 - [x] 8.2 Titre, artiste, état ; lecture/pause, suivant, précédent.
 
 ### Phase 9 : Réglages
-- [ ] 9.1 Panneau de réglages (couleurs, transparence, raccourcis, auto-masquage), enregistrés dans `userData` et appliqués en direct.
+
+La tuile 06 ouvre les réglages dans le panneau : couleurs, transparence (du panneau ouvert sur le flou), masquage automatique, raccourci clavier, les 5 tuiles (nom, appli / dossier / site web), réglages par défaut, quitter la barre (remplace le clic droit provisoire). Tout passe par `lib/settings.js` avant d'être enregistré (écriture sûre) et appliqué en direct.
+
+- [x] 9.1 Panneau de réglages (couleurs, transparence, raccourcis, auto-masquage), enregistrés dans `userData` et appliqués en direct.
 
 ### Phase 10 : Finitions
 - [ ] 10.1 Lancement au démarrage (`app.setLoginItemSettings`).

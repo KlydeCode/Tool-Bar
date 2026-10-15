@@ -56,7 +56,8 @@ Fidélité à la maquette : c'est la référence. Une capture est fournie par l'
 **Couleurs** (variables CSS, modifiables dans les réglages)
 - `--c1` couleur 1 : `#8AB4FF` (musique, barre de progression, volume, pochette)
 - `--c2` couleur 2 : `#FFB86B` (bouton lecture, « : » de l'horloge, survol des tuiles, heure dans la pilule, micro coupé)
-- Fond du panneau : `rgba(10,10,11, 1 - transparence)` ; transparence réglable de 0 à 70 %, 12 % par défaut (35 % jugé trop transparent par l’utilisateur), avec flou derrière
+- Fond : `rgba(10,10,11, 1 - transparence)`. Pilule et panneau sans flou : 12 % (35 % jugé trop transparent par l’utilisateur).
+  Panneau ouvert sur le flou : transparence réglable de 0 à 70 %, 30 % par défaut (phase 9)
   (décidé en phase 3 : capture de l'écran derrière la fenêtre à l'ouverture par un script PowerShell resté ouvert
   (`helpers/windows.ps1`, qui gère aussi le volume, le micro et la musique ; `desktopCapturer` bloquait le processus principal ~0,35 s et faisait saccader), floutée dans un canvas ; l'acrylique floute tout le
   rectangle de la fenêtre, `setShape` ne le découpe pas, et `backdrop-filter` / `filter` ne floutent pas le bureau)

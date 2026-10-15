@@ -1,13 +1,14 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, screen, shell } = require('electron');
+const { app, BrowserWindow, dialog, globalShortcut, ipcMain, screen, shell } = require('electron');
 const { execFile, spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const readline = require('node:readline');
 const { levelArg, micFromAnswer, percentFromLevel } = require('./lib/audio');
-const { loadConfig } = require('./lib/config');
+const { loadConfig, saveConfig } = require('./lib/config');
 const { parseMedia } = require('./lib/media');
 const { isPackageName, packageIconFile, resolveShortcut } = require('./lib/launch');
 const { topCenter } = require('./lib/position');
+const { cleanSettings } = require('./lib/settings');
 
 // Taille fixe = panneau déplié (680 px) + marge ; la pilule est dessinée dedans.
 const WIDTH = 720;
@@ -49,21 +50,22 @@ function createWindow() {
   win.setIgnoreMouseEvents(true, { forward: true });
   win.loadFile(path.join(__dirname, 'src', 'index.html'));
   win.once('ready-to-show', () => win.showInactive());
-  // Panneau ouvert au clavier puis clic ailleurs : on le referme.
-  win.on('blur', () => win.webContents.send('bar:close'));
+  // Panneau ouvert au clavier puis clic ailleurs : on le referme (sauf pendant le choix d'un fichier).
+  win.on('blur', () => {
+    if (!picking) win.webContents.send('bar:close');
+  });
 }
 
-// Raccourci global : ouvre ou ferme la barre depuis n'importe quelle appli.
+// Raccourci global (réglable, Alt+Maj+Espace par défaut) : ouvre ou ferme la barre depuis n'importe quelle appli.
 // (Ctrl+Alt+Espace était prévu mais il est déjà pris, sans doute par l'appli Claude.)
-const TOGGLE_SHORTCUT = 'Alt+Shift+Space';
-
-function registerShortcut() {
-  const ok = globalShortcut.register(TOGGLE_SHORTCUT, () => {
+function registerShortcut(accelerator) {
+  const ok = globalShortcut.register(accelerator, () => {
     // Le focus permet de fermer avec Échap ; la barre se referme si on clique ailleurs.
     win.focus();
     win.webContents.send('bar:toggle');
   });
-  if (!ok) console.error(`Raccourci ${TOGGLE_SHORTCUT} déjà utilisé par une autre appli.`);
+  if (!ok) console.error(`Raccourci ${accelerator} déjà utilisé par une autre appli.`);
+  return ok;
 }
 
 // ---------- Script Windows (helpers/windows.ps1) ----------
@@ -157,24 +159,70 @@ async function mediaControl(_event, action) {
   return (await ask(`media-${action}`)) === 'ok';
 }
 
-// ---------- Raccourcis d'applis ----------
-// Définis dans config.default.json, remplaçables par userData/config.json (réglages en phase 9).
-const MAX_TILES = 6;
+// ---------- Réglages ----------
+// config.default.json + userData/config.json, toujours nettoyés par cleanSettings (lib/settings.js).
+const DEFAULTS = require('./config.default.json');
 let config = null;
-let shortcuts = [];
+let picking = false; // une fenêtre de choix de fichier est ouverte
+
+function configFile() {
+  return path.join(app.getPath('userData'), 'config.json');
+}
 
 function loadSettings() {
-  const file = path.join(app.getPath('userData'), 'config.json');
-  config = loadConfig(file, require('./config.default.json'));
-  shortcuts = config.shortcuts.slice(0, MAX_TILES);
+  config = cleanSettings(loadConfig(configFile(), DEFAULTS), DEFAULTS);
 }
 
-// Réglages utiles à l'interface. « npm start -- --auto-hide » force l'auto-masquage pour le tester
-// (shortcut: en attendant le panneau de réglages de la phase 9, qui l'enregistrera dans la config).
+// Tout ce qui est dans la config peut être montré à l'interface (couleurs, tuiles…).
 function uiSettings() {
-  return { autoHide: config.autoHide === true || process.argv.includes('--auto-hide') };
+  return config;
 }
 
+// Enregistre de nouveaux réglages venant de l'interface, après vérification. Le raccourci clavier
+// n'est changé que s'il est libre ; en cas d'échec, les anciens réglages restent en place.
+function saveSettings(_event, input) {
+  const next = cleanSettings(input, DEFAULTS);
+  const shortcutChanged = next.toggleShortcut !== config.toggleShortcut;
+  if (shortcutChanged) {
+    globalShortcut.unregister(config.toggleShortcut);
+    if (!registerShortcut(next.toggleShortcut)) {
+      registerShortcut(config.toggleShortcut);
+      return { ok: false, error: 'Ce raccourci clavier est déjà utilisé par une autre appli.', settings: config };
+    }
+  }
+  try {
+    saveConfig(configFile(), next);
+  } catch (error) {
+    console.error('Réglages non enregistrés :', error);
+    if (shortcutChanged) {
+      globalShortcut.unregister(next.toggleShortcut);
+      registerShortcut(config.toggleShortcut);
+    }
+    return { ok: false, error: "Impossible d'enregistrer les réglages.", settings: config };
+  }
+  config = next;
+  return { ok: true, settings: config };
+}
+
+function resetSettings(event) {
+  return saveSettings(event, DEFAULTS);
+}
+
+// Choix d'une appli (.exe) ou d'un dossier pour une tuile, avec la fenêtre de Windows.
+async function pickTarget(_event, kind) {
+  if (kind !== 'app' && kind !== 'folder') return null;
+  picking = true;
+  try {
+    const result = await dialog.showOpenDialog(win, kind === 'app'
+      ? { title: 'Choisir une appli', properties: ['openFile'], filters: [{ name: 'Applications', extensions: ['exe'] }] }
+      : { title: 'Choisir un dossier', properties: ['openDirectory'] });
+    return result.canceled ? null : (result.filePaths[0] ?? null);
+  } finally {
+    picking = false;
+  }
+}
+
+// ---------- Raccourcis d'applis ----------
 function resolveTarget(shortcut) {
   return resolveShortcut(shortcut, {
     env: { ...process.env, DOWNLOADS: app.getPath('downloads') },
@@ -202,7 +250,8 @@ function packageDir(name) {
 }
 
 async function iconPath(shortcut) {
-  if (shortcut?.type !== 'app') return null;
+  // Applis et dossiers ont une vraie icône (le dossier Téléchargements a celle de Windows).
+  if (shortcut?.type !== 'app' && shortcut?.type !== 'folder') return null;
   if (shortcut.icon) {
     const file = packageIconFile(await packageDir(shortcut.icon.package), shortcut.icon.file);
     if (file) return file;
@@ -212,9 +261,9 @@ async function iconPath(shortcut) {
 
 // Nom, type et vraie icône (applis uniquement) de chaque tuile, pour l'interface.
 async function describeShortcuts() {
-  return Promise.all(shortcuts.map(async (shortcut) => {
+  return Promise.all(config.shortcuts.map(async (shortcut) => {
     const name = typeof shortcut?.name === 'string' ? shortcut.name.slice(0, 40) : '';
-    const type = shortcut?.type === 'settings' ? 'settings' : 'launch';
+    const type = shortcut.type; // déjà vérifié par cleanSettings : app, folder, url ou settings
     const file = await iconPath(shortcut);
     let icon = null;
     if (file) {
@@ -229,8 +278,8 @@ async function describeShortcuts() {
 }
 
 async function launchShortcut(_event, index) {
-  if (!Number.isInteger(index) || index < 0 || index >= shortcuts.length) return false;
-  const target = resolveTarget(shortcuts[index]);
+  if (!Number.isInteger(index) || index < 0 || index >= config.shortcuts.length) return false;
+  const target = resolveTarget(config.shortcuts[index]);
   if (!target) {
     console.error(`Raccourci ${index + 1} : cible introuvable ou refusée.`);
     return false;
@@ -251,7 +300,7 @@ function start() {
     loadSettings();
     createWindow();
     startHelper(); // prêt avant le premier survol
-    registerShortcut();
+    registerShortcut(config.toggleShortcut);
 
     for (const event of ['display-added', 'display-removed', 'display-metrics-changed']) {
       screen.on(event, placeWindow);
@@ -261,6 +310,9 @@ function start() {
   ipcMain.on('bar:quit', () => app.quit());
   ipcMain.handle('bar:backdrop', captureBackdrop);
   ipcMain.handle('bar:settings', uiSettings);
+  ipcMain.handle('bar:save-settings', saveSettings);
+  ipcMain.handle('bar:reset-settings', resetSettings);
+  ipcMain.handle('bar:pick', pickTarget);
   ipcMain.handle('bar:audio', getAudio);
   ipcMain.handle('bar:volume', setVolume);
   ipcMain.handle('bar:mic', setMicMuted);
