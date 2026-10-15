@@ -1,7 +1,10 @@
 {
+  "bg": "#0a0a0b",
+  "surface": "#2c2c31",
   "c1": "#8ab4ff",
   "c2": "#ffb86b",
   "transparency": 30,
+  "font": "minimal",
   "autoHide": false,
   "toggleShortcut": "Alt+Shift+Space",
   "shortcuts": [

@@ -7,6 +7,9 @@ const { cleanSettings, isAccelerator } = require('../lib/settings');
 const { saveConfig, loadConfig } = require('../lib/config');
 
 const defaults = {
+  bg: '#0a0a0b',
+  surface: '#2c2c31',
+  font: 'minimal',
   c1: '#8ab4ff',
   c2: '#ffb86b',
   transparency: 30,
