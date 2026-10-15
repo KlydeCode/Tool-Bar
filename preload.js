@@ -7,6 +7,9 @@ contextBridge.exposeInMainWorld('bar', {
   getBackdrop: () => ipcRenderer.invoke('bar:backdrop'),
   getSettings: () => ipcRenderer.invoke('bar:settings'),
   getShortcuts: () => ipcRenderer.invoke('bar:shortcuts'),
+  getAudio: () => ipcRenderer.invoke('bar:audio'),
+  setVolume: (percent) => ipcRenderer.invoke('bar:volume', percent),
+  setMicMuted: (muted) => ipcRenderer.invoke('bar:mic', muted),
   // Seulement le numéro de la tuile : main.js retrouve la cible dans la config.
   launch: (index) => ipcRenderer.invoke('bar:launch', index),
   // Seulement des signaux sans données : l'interface ne reçoit jamais l'objet « event ».

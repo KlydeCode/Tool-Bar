@@ -18,7 +18,10 @@ function setOpen(open) {
   if (open) showBar();
   else scheduleHide(HIDE_DELAY);
   if (body.classList.contains('is-open') === open) return;
-  if (open) refreshBackdrop();
+  if (open) {
+    refreshBackdrop();
+    refreshAudio();
+  }
   body.classList.toggle('is-open', open);
   pill.setAttribute('aria-expanded', String(open));
   // Replié : le fond redevient sombre tout de suite (styles.css) et on oublie la capture.
@@ -184,13 +187,55 @@ play.addEventListener('click', () => {
   play.setAttribute('aria-label', playing ? 'Pause' : 'Lecture');
 });
 
-// ---------- Volume ----------
-// Remplissage du curseur et chiffre (le vrai volume système arrive en phase 7).
+// ---------- Volume et micro ----------
+// Vrai volume du système et vrai micro (via main.js). Relus à chaque ouverture du panneau,
+// car ils peuvent changer ailleurs (touches du clavier, réglages Windows).
 const volume = document.getElementById('volume');
 const volumeValue = document.getElementById('volume-value');
+const mic = document.getElementById('mic');
+const VOLUME_THROTTLE = 60; // ms entre deux envois pendant qu'on fait glisser le curseur
+let volumeTimer = null;
+let micMuted = false;
+
 function renderVolume() {
   volume.style.setProperty('--fill', `${volume.value}%`);
   volumeValue.textContent = volume.value;
 }
-volume.addEventListener('input', renderVolume);
+
+function renderMic() {
+  mic.classList.toggle('is-muted', micMuted);
+  mic.setAttribute('aria-pressed', String(micMuted));
+  mic.setAttribute('aria-label', micMuted ? 'Rétablir le micro' : 'Couper le micro');
+}
+
+async function refreshAudio() {
+  const audio = await window.bar.getAudio();
+  if (audio.volume !== null) {
+    volume.value = audio.volume;
+    renderVolume();
+  }
+  if (audio.micMuted !== null) {
+    micMuted = audio.micMuted;
+    renderMic();
+  }
+}
+
+volume.addEventListener('input', () => {
+  renderVolume();
+  // Un envoi toutes les 60 ms au plus ; la dernière position part toujours.
+  if (volumeTimer) return;
+  volumeTimer = setTimeout(() => {
+    volumeTimer = null;
+    window.bar.setVolume(Number(volume.value));
+  }, VOLUME_THROTTLE);
+});
+
+mic.addEventListener('click', async () => {
+  if (await window.bar.setMicMuted(!micMuted)) {
+    micMuted = !micMuted;
+    renderMic();
+  }
+});
+
 renderVolume();
+refreshAudio();

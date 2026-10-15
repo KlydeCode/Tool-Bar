@@ -3,6 +3,7 @@ const { execFile, spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const readline = require('node:readline');
+const { levelArg, micFromAnswer, percentFromLevel } = require('./lib/audio');
 const { loadConfig } = require('./lib/config');
 const { isPackageName, packageIconFile, resolveShortcut } = require('./lib/launch');
 const { topCenter } = require('./lib/position');
@@ -64,44 +65,48 @@ function registerShortcut() {
   if (!ok) console.error(`Raccourci ${TOGGLE_SHORTCUT} déjà utilisé par une autre appli.`);
 }
 
+// ---------- Script Windows (helpers/windows.ps1) ----------
+// Un petit script PowerShell lancé une fois et resté ouvert fait la capture du fond, le volume
+// et le micro. Les demandes ne contiennent que des nombres préparés ici, jamais du texte de l'interface.
+// (desktopCapturer bloquait le processus principal ~0,35 s à chaque survol : souris et animation saccadées.)
+let helper = null;
+const pending = [];
+
+function startHelper() {
+  // shortcut: le script est lu depuis le dossier du projet ; pour l'installateur (phase 10), le sortir de l'archive asar.
+  helper = spawn('powershell.exe', [
+    '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+    '-File', path.join(__dirname, 'helpers', 'windows.ps1'),
+  ], { windowsHide: true });
+  readline.createInterface({ input: helper.stdout }).on('line', (line) => pending.shift()?.(line));
+  const stop = () => {
+    helper = null;
+    pending.splice(0).forEach((resolve) => resolve(''));
+  };
+  helper.on('error', (error) => {
+    console.error('Script Windows impossible à lancer :', error);
+    stop();
+  });
+  helper.on('exit', stop);
+  // Écrire vers un script arrêté ne doit pas faire planter l'appli.
+  helper.stdin.on('error', () => {});
+}
+
+// Envoie une demande au script ; réponse '' en cas d'erreur ou sans réponse à temps.
+function ask(request) {
+  if (!helper) startHelper();
+  return new Promise((resolve) => {
+    pending.push(resolve);
+    helper.stdin.write(`${request}\n`);
+    // Large : au démarrage, le script met une ou deux secondes à se préparer.
+    setTimeout(() => resolve(''), 4000);
+  });
+}
+
 // Capture de l'écran derrière la fenêtre, floutée ensuite sous le panneau (voir app.js).
 // (Windows ne floute pas ce qui est derrière une fenêtre transparente, et l'acrylique
 // floute tout le rectangle de la fenêtre, pas seulement le panneau arrondi.)
-// Faite par un petit script PowerShell qui reste ouvert : desktopCapturer bloquait le
-// processus principal ~0,35 s à chaque survol, ce qui faisait saccader la souris et l'animation.
 const BACKDROP_SCALE = 0.25; // l'image est floutée : une petite capture suffit
-let capturer = null;
-const pending = [];
-
-function startCapturer() {
-  // shortcut: le script est lu depuis le dossier du projet ; pour l'installateur (phase 10), le sortir de l'archive asar.
-  capturer = spawn('powershell.exe', [
-    '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-    '-File', path.join(__dirname, 'helpers', 'capture.ps1'),
-  ], { windowsHide: true });
-  readline.createInterface({ input: capturer.stdout }).on('line', (line) => pending.shift()?.(line));
-  const stop = () => {
-    capturer = null;
-    pending.splice(0).forEach((resolve) => resolve(''));
-  };
-  capturer.on('error', (error) => {
-    console.error('Script de capture impossible à lancer :', error);
-    stop();
-  });
-  capturer.on('exit', stop);
-  // Écrire vers un script arrêté ne doit pas faire planter l'appli.
-  capturer.stdin.on('error', () => {});
-}
-
-function grabScreen(x, y, width, height) {
-  if (!capturer) startCapturer();
-  return new Promise((resolve) => {
-    pending.push(resolve);
-    capturer.stdin.write(`${x} ${y} ${width} ${height} ${BACKDROP_SCALE}\n`);
-    // Si le script ne répond pas, le panneau reste simplement sans flou.
-    setTimeout(() => resolve(''), 2000);
-  });
-}
 
 async function captureBackdrop() {
   if (!win) return null;
@@ -109,11 +114,28 @@ async function captureBackdrop() {
   // La barre s'exclut de la capture le temps de la prendre.
   win.setContentProtection(true);
   try {
-    const base64 = await grabScreen(b.x, b.y, b.width, b.height);
+    const base64 = await ask(`capture ${b.x} ${b.y} ${b.width} ${b.height} ${BACKDROP_SCALE}`);
     return base64 ? `data:image/jpeg;base64,${base64}` : null;
   } finally {
     win.setContentProtection(false);
   }
+}
+
+// ---------- Volume et micro ----------
+async function getAudio() {
+  const volume = percentFromLevel(await ask('volume'));
+  const micMuted = micFromAnswer(await ask('mic'));
+  return { volume, micMuted };
+}
+
+async function setVolume(_event, percent) {
+  const level = levelArg(percent);
+  return level !== null && (await ask(`volume-set ${level}`)) === 'ok';
+}
+
+async function setMicMuted(_event, muted) {
+  if (typeof muted !== 'boolean') return false;
+  return (await ask(`mic-set ${muted ? 1 : 0}`)) === 'ok';
 }
 
 // ---------- Raccourcis d'applis ----------
@@ -210,7 +232,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     loadSettings();
     createWindow();
-    startCapturer(); // prêt avant le premier survol
+    startHelper(); // prêt avant le premier survol
     registerShortcut();
 
     for (const event of ['display-added', 'display-removed', 'display-metrics-changed']) {
@@ -221,6 +243,9 @@ if (!app.requestSingleInstanceLock()) {
   ipcMain.on('bar:quit', () => app.quit());
   ipcMain.handle('bar:backdrop', captureBackdrop);
   ipcMain.handle('bar:settings', uiSettings);
+  ipcMain.handle('bar:audio', getAudio);
+  ipcMain.handle('bar:volume', setVolume);
+  ipcMain.handle('bar:mic', setMicMuted);
   ipcMain.handle('bar:shortcuts', describeShortcuts);
   ipcMain.handle('bar:launch', launchShortcut);
   ipcMain.on('bar:interactive', (_event, on) => {
@@ -229,6 +254,6 @@ if (!app.requestSingleInstanceLock()) {
   app.on('window-all-closed', () => app.quit());
   app.on('will-quit', () => {
     globalShortcut.unregisterAll();
-    capturer?.kill();
+    helper?.kill();
   });
 }

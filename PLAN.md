@@ -88,8 +88,11 @@ Choix : « Navigateur » ouvre une adresse web (le navigateur par défaut est ch
 - [x] 6.1 Option de config (`autoHide`, désactivée par défaut ; à tester avec `npm start -- --auto-hide` en attendant la phase 9) ; la barre glisse hors de l'écran et une bande de 2 px en haut la fait revenir.
 
 ### Phase 7 : Volume et micro
-- [ ] 7.1 Recherche dans la doc (API Windows Core Audio : PowerShell en arguments fixes ou petit binaire) ; choix expliqué, et accord demandé si une dépendance est nécessaire.
-- [ ] 7.2 Lecture et réglage du volume système, coupure du micro.
+
+Choix : API Core Audio de Windows (`IAudioEndpointVolume`) appelée depuis `helpers/windows.ps1` (C# compilé par `Add-Type`), le même script resté ouvert que la capture du fond. Aucune dépendance.
+
+- [x] 7.1 Recherche dans la doc (API Windows Core Audio : PowerShell en arguments fixes ou petit binaire) ; choix expliqué, et accord demandé si une dépendance est nécessaire.
+- [x] 7.2 Lecture et réglage du volume système, coupure du micro.
 
 ### Phase 8 : Musique
 - [ ] 8.1 Recherche (Windows `GlobalSystemMediaTransportControlsSessionManager`) ; explication à l'utilisateur avant de coder.
