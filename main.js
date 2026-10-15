@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, globalShortcut, ipcMain, net, screen, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, globalShortcut, ipcMain, net, screen, shell } = require('electron');
 const crypto = require('node:crypto');
 const { execFile, spawn } = require('node:child_process');
 const fs = require('node:fs');
@@ -8,7 +8,7 @@ const { levelArg, micFromAnswer, percentFromLevel } = require('./lib/audio');
 const { calendarUrl, eventsBetween, weekStart } = require('./lib/calendar');
 const { loadConfig, saveConfig } = require('./lib/config');
 const { parseMedia } = require('./lib/media');
-const { isPackageName, packageIconFile, resolveShortcut } = require('./lib/launch');
+const { isPackageName, packageIconFile, resolveShortcut, shortcutFileName } = require('./lib/launch');
 const { topCenter } = require('./lib/position');
 const { parseApps, searchApps } = require('./lib/search');
 const { MAX_TILES, cleanSettings } = require('./lib/settings');
@@ -467,6 +467,60 @@ function pinApp(event, index) {
   return saveSettings(event, { ...config, shortcuts });
 }
 
+// Fichier de l'appli : son .exe (applis classiques) ou son dossier (Microsoft Store), sinon ''.
+async function appPath(index) {
+  const found = await ask(`app-path ${index}`);
+  return found && path.win32.isAbsolute(found) && fs.existsSync(found) ? found : '';
+}
+
+// Raccourci .lnk sur le Bureau ; « Spotify (2).lnk » si « Spotify.lnk » existe déjà.
+function createDesktopShortcut(name, { exe, appId }) {
+  const desktop = app.getPath('desktop');
+  const base = shortcutFileName(name);
+  let file = path.join(desktop, `${base}.lnk`);
+  for (let n = 2; fs.existsSync(file); n++) file = path.join(desktop, `${base} (${n}).lnk`);
+  const options = exe
+    ? { target: exe, icon: exe, iconIndex: 0 }
+    // Appli du Microsoft Store : lancée comme depuis le menu Démarrer.
+    : { target: path.join(process.env.SystemRoot ?? 'C:\\Windows', 'explorer.exe'), args: `shell:AppsFolder\\${appId}` };
+  return shell.writeShortcutLink(file, 'create', options);
+}
+
+// Clic droit sur un résultat de recherche : menu Windows. Se résout quand le menu se ferme.
+async function appMenu(event, index) {
+  if (!isAppIndex(index)) return null;
+  const { id, name } = apps[index];
+  const file = await appPath(index);
+  // Un .exe classique se lance directement ; ceux du Microsoft Store (WindowsApps) passent par leur identifiant.
+  const exe = /\.exe$/i.test(file) && !/\\WindowsApps\\/i.test(file) ? file : '';
+  let result = null;
+  const menu = Menu.buildFromTemplate([
+    { label: 'Ouvrir', click: () => openStartApp(id) },
+    {
+      label: "Ouvrir l'emplacement du fichier",
+      enabled: Boolean(file),
+      click: () => (file.toLowerCase().endsWith('.exe') ? shell.showItemInFolder(file) : shell.openPath(file)),
+    },
+    { type: 'separator' },
+    { label: 'Ajouter aux raccourcis de la barre', click: () => { result = pinApp(event, index); } },
+    {
+      label: 'Créer un raccourci sur le Bureau',
+      click: () => {
+        const ok = createDesktopShortcut(name, { exe, appId: id });
+        result = { ok, error: ok ? '' : 'Raccourci impossible à créer.', settings: config, desktop: ok };
+      },
+    },
+  ]);
+  picking = true; // le menu ouvert ne doit pas refermer la barre
+  return new Promise((resolve) => menu.popup({
+    window: win,
+    callback: () => setTimeout(() => {
+      picking = false;
+      resolve(result);
+    }, 0),
+  }));
+}
+
 // Tuile « startapp » : l'identifiant doit toujours exister dans la liste de Windows.
 async function startAppIndex(appId) {
   let index = (await loadApps()).findIndex((a) => a.id === appId);
@@ -532,6 +586,7 @@ function start() {
   ipcMain.handle('bar:app-icon', (_event, index) => appIcon(index));
   ipcMain.handle('bar:launch-app', launchApp);
   ipcMain.handle('bar:pin-app', pinApp);
+  ipcMain.handle('bar:app-menu', appMenu);
   ipcMain.handle('bar:week', getWeek);
   ipcMain.handle('bar:calendars', getCalendars);
   ipcMain.handle('bar:add-calendar', addCalendarUrl);

@@ -10,6 +10,7 @@
 #   media-play | media-next | media-prev -> « ok »
 #   apps                                 -> applis du menu Démarrer en JSON [{ name, id }] (liste gardée ici)
 #   app-icon 12                          -> icône de l'appli n° 12 de cette liste, en PNG base64
+#   app-path 12                          -> fichier de l'appli n° 12 (.exe, ou dossier pour le Microsoft Store)
 # Les arguments sont toujours des nombres, vérifiés ici aussi.
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
@@ -130,6 +131,42 @@ public static class BarAppIcons {
     } finally {
       DeleteObject(hbmp);
     }
+  }
+}
+'@
+
+# Emplacement d'une appli du menu Démarrer, demandé à Windows.
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+
+[StructLayout(LayoutKind.Sequential)] public struct BAR_PROPKEY { public Guid fmtid; public uint pid; }
+
+[ComImport, Guid("7e9fb0d3-919f-4307-ab2e-9b1860310c93"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IShellItem2 {
+  // Méthodes non utilisées, déclarées seulement pour garder l'ordre de l'interface Windows.
+  void BindToHandler(); void GetParent(); void GetDisplayName(); void GetAttributes(); void Compare();
+  void GetPropertyStore(); void GetPropertyStoreWithCreateObject(); void GetPropertyStoreForKeys();
+  void GetPropertyDescriptionList(); void Update(); void GetProperty(); void GetCLSID(); void GetFileTime(); void GetInt32();
+  [PreserveSig] int GetString(ref BAR_PROPKEY key, [MarshalAs(UnmanagedType.LPWStr)] out string value);
+}
+
+public static class BarAppPath {
+  [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
+  static extern void SHCreateItemFromParsingName(string path, IntPtr bc, [MarshalAs(UnmanagedType.LPStruct)] Guid riid, [MarshalAs(UnmanagedType.Interface)] out IShellItem2 item);
+
+  static string Get(IShellItem2 item, string fmtid, uint pid) {
+    var key = new BAR_PROPKEY { fmtid = new Guid(fmtid), pid = pid };
+    string value;
+    return item.GetString(ref key, out value) == 0 && value != null ? value : "";
+  }
+
+  public static string Find(string appId) {
+    IShellItem2 item;
+    SHCreateItemFromParsingName("shell:AppsFolder\\" + appId, IntPtr.Zero, typeof(IShellItem2).GUID, out item);
+    // System.Link.TargetParsingPath (applis classiques), sinon System.AppUserModel.PackageInstallPath (Microsoft Store).
+    var target = Get(item, "B9B4B3FC-2B51-4A42-B5D8-324146AFCF25", 2);
+    return target != "" ? target : Get(item, "9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3", 15);
   }
 }
 '@
@@ -256,8 +293,17 @@ function Get-Apps {
   ConvertTo-Json -Compress -InputObject @($appList | ForEach-Object { [ordered]@{ name = [string]$_.Name; id = [string]$_.AppID } })
 }
 
-function Get-AppIcon($index) {
+function Test-AppIndex($index) {
   if ($index -lt 0 -or $index -ge $appList.Count -or $index -ne [Math]::Floor($index)) { throw 'numéro' }
+}
+
+function Get-AppPath($index) {
+  Test-AppIndex $index
+  [BarAppPath]::Find($appList[[int]$index].AppID)
+}
+
+function Get-AppIcon($index) {
+  Test-AppIndex $index
   $icon = [BarAppIcons]::Get($appList[[int]$index].AppID, 48)
   $ms = New-Object System.IO.MemoryStream
   $icon.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
@@ -283,6 +329,7 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
       }
       'apps' { Get-Apps }
       'app-icon' { Get-AppIcon (Get-Numbers $parts 1) }
+      'app-path' { Get-AppPath (Get-Numbers $parts 1) }
       'media' { Get-Media }
       'media-art' { Get-MediaArt }
       'media-play' { Invoke-MediaControl 'play' }

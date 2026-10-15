@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { isPackageName, packageIconFile, resolveShortcut } = require('../lib/launch');
+const { isPackageName, packageIconFile, resolveShortcut, shortcutFileName } = require('../lib/launch');
 
 const env = { LOCALAPPDATA: 'C:\\Users\\me\\AppData\\Local', DOWNLOADS: 'D:\\Téléchargements' };
 const existing = new Set(['C:\\Users\\me\\AppData\\Local\\Programs\\Code.exe', 'D:\\Téléchargements']);
@@ -62,6 +62,16 @@ test('nom de paquet : lettres, chiffres et points seulement', () => {
   assert.equal(isPackageName('x; Remove-Item C:\\'), false);
   assert.equal(isPackageName(''), false);
   assert.equal(isPackageName(undefined), false);
+});
+
+test('nom de raccourci sur le Bureau : caractères interdits retirés', () => {
+  assert.equal(shortcutFileName('Visual Studio Code'), 'Visual Studio Code');
+  assert.equal(shortcutFileName('a<b>c:d"e/f\\g|h?i*j'), 'abcdefghij');
+  assert.equal(shortcutFileName('..\\..\\Windows\\evil'), 'Windowsevil');
+  assert.equal(shortcutFileName('  fin avec points... '), 'fin avec points');
+  assert.equal(shortcutFileName('???'), 'Appli');
+  assert.equal(shortcutFileName('CON'), 'Appli');
+  assert.equal(shortcutFileName('x'.repeat(200)).length, 80);
 });
 
 test('types inconnus et entrées vides : rien', () => {

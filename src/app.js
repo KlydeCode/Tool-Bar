@@ -58,7 +58,7 @@ agenda.addEventListener('mouseleave', () => {
 });
 // Dans les réglages, la souris peut sortir (fenêtre de choix de fichier…) sans tout refermer.
 panel.addEventListener('mouseleave', () => {
-  if (!body.classList.contains('is-settings')) later(false, CLOSE_DELAY);
+  if (!body.classList.contains('is-settings') && !menuOpen) later(false, CLOSE_DELAY);
 });
 document.getElementById('collapse').addEventListener('click', () => setOpen(false));
 document.addEventListener('keydown', (event) => {
@@ -254,6 +254,13 @@ const resultsEl = document.getElementById('results');
 const tilesLabel = document.getElementById('tiles-label');
 const SEARCH_DELAY = 80; // ms : laisse finir la frappe avant de chercher
 let searchTimer = null;
+let menuOpen = false;
+
+// Petit message dans la barre de recherche, puis retour au texte d'aide.
+function flashSearch(text) {
+  searchInput.placeholder = text;
+  setTimeout(() => { searchInput.placeholder = 'Rechercher une appli…'; }, 2500);
+}
 let results = [];
 let selected = 0;
 let searchId = 0;
@@ -284,6 +291,17 @@ function renderResults() {
     const icon = symbol('app');
     const tile = makeTile(i + 1, result.name, icon);
     tile.addEventListener('click', () => launchResult(i));
+    tile.addEventListener('contextmenu', async (event) => {
+      event.preventDefault();
+      selectResult(i);
+      menuOpen = true; // la souris va sur le menu : le panneau ne doit pas se refermer
+      const answer = await window.bar.appMenu(result.index);
+      menuOpen = false;
+      if (!answer) return;
+      settings = answer.settings;
+      if (answer.ok && !answer.desktop) refreshTiles();
+      flashSearch(answer.ok ? (answer.desktop ? 'Raccourci créé sur le Bureau.' : 'Ajoutée aux raccourcis.') : answer.error);
+    });
     window.bar.getAppIcon(result.index).then((src) => {
       if (src) icon.replaceWith(iconImage(src));
     });

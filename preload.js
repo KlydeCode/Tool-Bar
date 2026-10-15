@@ -26,6 +26,8 @@ contextBridge.exposeInMainWorld('bar', {
   getAppIcon: (index) => ipcRenderer.invoke('bar:app-icon', index),
   launchApp: (index) => ipcRenderer.invoke('bar:launch-app', index),
   pinApp: (index) => ipcRenderer.invoke('bar:pin-app', index),
+  // Menu du clic droit sur un résultat ; réponse quand il se ferme (null si rien n'a été choisi).
+  appMenu: (index) => ipcRenderer.invoke('bar:app-menu', index),
   // Agenda : semaine (date en millisecondes), liste des agendas, ajout d'un lien, import d'un .ics, suppression.
   getWeek: (startMs) => ipcRenderer.invoke('bar:week', startMs),
   getCalendars: () => ipcRenderer.invoke('bar:calendars'),

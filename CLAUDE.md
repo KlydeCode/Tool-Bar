@@ -109,6 +109,7 @@ Ajouts demandés après la phase 9 (avant l'installateur) :
   Dossiers : simple pictogramme de dossier.
 - **Recherche d'applis du PC** dans le panneau (liste du menu Démarrer via `Get-StartApps`, icônes via Windows) ;
   Entrée lance, flèches pour choisir, épingle pour ajouter en tuile. Alt+Maj+Espace ouvre la barre avec le curseur dans la recherche.
+  Clic droit sur un résultat : menu Windows (ouvrir, ouvrir l'emplacement du fichier, ajouter aux raccourcis, raccourci sur le Bureau).
 - **Thèmes** (`lib/themes.js`) : 5 thèmes de 4 couleurs (fond, cartes, couleur 1, couleur 2) tirés des palettes Lospec
   envoyées par l'utilisateur (Minimal, Pastel Landscape, Mighty Retro Zero, Spaceship 25, Apollo) ; chaque couleur reste modifiable.
 - **Police** au choix : Minimal (Bricolage / Uncut Sans / JetBrains Mono), Pixel art (Pixelify Sans / Silkscreen, tailles
