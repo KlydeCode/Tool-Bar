@@ -10,5 +10,8 @@
   },
   "devDependencies": {
     "electron": "^44.7.2"
+  },
+  "dependencies": {
+    "ical.js": "^2.2.1"
   }
 }
