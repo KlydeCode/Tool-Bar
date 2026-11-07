@@ -24,5 +24,5 @@ npm run dist     # crée l'installateur dans src-tauri/target/release/bundle/nsi
 ```
 
 Tauri 2 : Rust (`src-tauri/`) + TypeScript, HTML, CSS (`ui/`). Détails : `CLAUDE.md` (règles du projet), `SPEC.md`, `PLAN.md`.
-Polices sous licence OFL (`ui/fonts/`). Dépendances : `ical.js` (agenda), Tauri et ses modules officiels,
+Polices sous licence OFL (`ui/fonts/` : Inter, Pixelify Sans, Silkscreen, Fraunces). Dépendances : `ical.js` (agenda), Tauri et ses modules officiels,
 et côté Rust `serde_json`, `url`, `ureq` (téléchargement des agendas), `base64`.

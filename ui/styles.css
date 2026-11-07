@@ -1,13 +1,9 @@
 /* Polices locales (licences OFL dans ui/fonts/) */
 @font-face {
-  font-family: "Bricolage Grotesque";
-  src: url("fonts/BricolageGrotesque.ttf") format("truetype");
-  font-weight: 200 800;
-}
-@font-face {
-  font-family: "Uncut Sans";
-  src: url("fonts/UncutSans-Variable.woff2") format("woff2");
-  font-weight: 300 700;
+  /* Inter (OFL) : la police libre la plus proche de celle d'Apple ; tailles optiques automatiques */
+  font-family: "Inter";
+  src: url("fonts/InterVariable.woff2") format("woff2");
+  font-weight: 100 900;
 }
 @font-face {
   font-family: "Pixelify Sans";
@@ -23,11 +19,6 @@
   src: url("fonts/Fraunces.ttf") format("truetype");
   font-weight: 100 900;
 }
-@font-face {
-  font-family: "JetBrains Mono";
-  src: url("fonts/JetBrainsMono.ttf") format("truetype");
-  font-weight: 100 800;
-}
 
 :root {
   --c1: #8AB4FF;
@@ -39,17 +30,18 @@
   --panel-bg: color-mix(in srgb, var(--bg) calc((1 - var(--transparency)) * 100%), transparent);
   --card-bg: color-mix(in srgb, var(--surface) 50%, transparent);
   /* Police (réglages) : titres et horloge, texte courant, petites étiquettes */
-  --font-display: "Bricolage Grotesque", sans-serif;
-  --font-text: "Uncut Sans", "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
-  --clock-weight: 800;
-  --clock-spacing: -0.05em;
-  --label-spacing: 0.14em;
+  --font-display: "Inter", "Segoe UI Variable", sans-serif;
+  --font-text: "Inter", "Segoe UI Variable", sans-serif;
+  --font-mono: "Inter", "Segoe UI Variable", sans-serif;
+  --clock-weight: 600;
+  --clock-spacing: -0.035em;
+  --label-spacing: 0;
   --border: rgba(255, 255, 255, 0.1);
   --text: #F4F4F5;
   --text-2: #B4B4BC;
   --on-color: #0A0A0B;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.36, 0.64, 1); /* léger rebond, façon iOS */
   --panel-w: 520px; /* largeur du panneau ouvert (680 px avant la 2.0, jugé trop grand) */
 }
 
@@ -66,7 +58,6 @@ body[data-font="pixel"] {
    Pixelify Sans : 11, 12, 14, 15, 18, 20 px… ; Silkscreen : 8, 9, 12, 16 px. */
 body[data-font="pixel"] .label,
 body[data-font="pixel"] .times,
-body[data-font="pixel"] .tile .num,
 body[data-font="pixel"] .tile-row .num { font-size: 9px; }
 body[data-font="pixel"] .pill,
 body[data-font="pixel"] .volume-value,
@@ -100,6 +91,8 @@ html, body {
 body {
   font-family: var(--font-text);
   color: var(--text);
+  font-feature-settings: "cv11"; /* « a » à un étage, plus doux */
+  -webkit-font-smoothing: antialiased;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -129,11 +122,12 @@ button:focus-visible, input:focus-visible {
   flex: none;
 }
 
+/* Petites étiquettes, à la manière d'Apple : minuscules, grasses, grises */
 .label {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-family: var(--font-text);
+  font-size: 11.5px;
+  font-weight: 600;
   letter-spacing: var(--label-spacing);
-  text-transform: uppercase;
   color: var(--text-2);
 }
 
@@ -257,12 +251,17 @@ body:not(.has-music) .times,
 /* Le contenu apparaît une fois le fond bien étiré, et disparaît avant qu'il se replie */
 .panel > :not(.backdrop) {
   opacity: 0;
-  transition: opacity 0.12s;
+  transform: translateY(-6px) scale(0.985);
+  transition: opacity 0.12s, transform 0.12s;
 }
 .is-open .panel > :not(.backdrop) {
   opacity: 1;
-  transition: opacity 0.35s ease 0.22s;
+  transform: none;
+  transition: opacity 0.4s ease var(--delay, 0.2s), transform 0.55s var(--ease-out) var(--delay, 0.2s);
 }
+.is-open .panel > .section-head { --delay: 0.25s; }
+.is-open .panel > .tiles { --delay: 0.28s; }
+.is-open .panel > .volume { --delay: 0.32s; }
 /* Fond du panneau en deux couches sous le contenu : la capture de l'écran déjà floutée
    (canvas, voir app.js), puis la teinte sombre. Le flou apparaît en fondu depuis le noir. */
 .backdrop {
@@ -294,7 +293,8 @@ body:not(.has-music) .times,
 
 .card {
   background: var(--card-bg);
-  border-radius: 20px;
+  border-radius: 18px;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.08);
 }
 .card-head {
   display: flex;
@@ -324,7 +324,8 @@ body:not(.has-music) .times,
   flex: none;
   width: 40px;
   height: 40px;
-  border-radius: 11px;
+  border-radius: 9px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
   overflow: hidden;
   background: var(--c1);
   color: var(--on-color);
@@ -348,14 +349,15 @@ body:not(.has-music) .times,
 .track-text { flex: 1; min-width: 0; }
 .title {
   font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .artist {
-  font-size: 13.5px;
+  font-size: 13px;
   color: var(--text-2);
   margin-top: 2px;
 }
@@ -364,52 +366,28 @@ body:not(.has-music) .times,
   align-items: center;
   gap: 2px;
 }
-.ctrl {
+/* Contrôles de lecture façon Apple : pictogrammes pleins, sans fond, qui réagissent à la pression */
+.ctrl, .play {
   width: 34px;
   height: 34px;
   display: grid;
   place-items: center;
   border-radius: 50%;
+  transition: background 0.2s, scale 0.3s var(--ease-spring);
 }
+.ctrl:hover, .play:hover { background: rgba(255, 255, 255, 0.1); }
+.ctrl:active, .play:active { scale: 0.88; }
+.ctrl .icon { fill: currentColor; width: 18px; height: 18px; }
 .ctrl:disabled, .play:disabled { opacity: 0.35; cursor: default; }
 .ctrl.ctrl:disabled .icon { transform: none; }
 .ctrl .icon { transition: transform 0.25s var(--ease-out); }
 .prev:hover .icon { transform: translateX(-3px); }
 .next:hover .icon { transform: translateX(3px); }
 
-.play {
-  position: relative;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: var(--c2);
-  color: var(--on-color);
-  display: grid;
-  place-items: center;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c2) 30%, transparent);
-  transition: transform 0.25s var(--ease-out);
-}
-.play:hover { transform: scale(1.08); }
-.play:active { transform: scale(0.94); }
-.play .icon { fill: currentColor; stroke: none; width: 18px; height: 18px; }
+.play { width: 38px; height: 38px; }
+.play .icon { fill: currentColor; stroke: none; width: 22px; height: 22px; }
 body:not(.is-playing) .icon-pause,
 .is-playing .icon-play { display: none; }
-
-/* Onde qui pulse autour du bouton pendant la lecture */
-.play::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 2px solid var(--c2);
-  opacity: 0;
-  pointer-events: none;
-}
-.is-playing .play::after { animation: wave 1.8s ease-out infinite; }
-@keyframes wave {
-  from { transform: scale(1); opacity: 0.6; }
-  to { transform: scale(1.6); opacity: 0; }
-}
 
 /* Égaliseur : barres qui dansent pendant la lecture */
 .eq {
@@ -453,9 +431,10 @@ body:not(.is-playing) .icon-pause,
 .times {
   display: flex;
   justify-content: space-between;
-  margin-top: 8px;
-  font-family: var(--font-mono);
+  margin-top: 6px;
   font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
   color: var(--text-2);
 }
 
@@ -482,6 +461,7 @@ body:not(.is-playing) .icon-pause,
 .collapse .icon { width: 16px; height: 16px; }
 .time {
   font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
   font-size: 44px;
   font-weight: var(--clock-weight);
   letter-spacing: var(--clock-spacing);
@@ -503,47 +483,46 @@ body:not(.is-playing) .icon-pause,
 }
 .tile {
   position: relative;
-  height: 64px;
+  height: 66px;
   border-radius: 16px;
-  background: var(--card-bg);
-  border: 1px solid transparent;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  padding-top: 6px;
-  transition: transform 0.25s var(--ease-out), border-color 0.2s;
-}
-.tile .num {
-  position: absolute;
-  top: 6px;
-  left: 9px;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  color: var(--text-2);
+  gap: 6px;
+  transition: background 0.2s, scale 0.35s var(--ease-spring);
+  -webkit-user-drag: none;
+  touch-action: none;
 }
 .tile .name {
   max-width: 100%;
-  padding: 0 5px;
-  font-size: 11.5px;
+  padding: 0 4px;
+  font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.tile .icon { width: 18px; height: 18px; }
-.tile img.icon { width: 20px; height: 20px; }
-.tile .icon { transition: transform 0.3s var(--ease-out), color 0.2s; }
-.tile:hover {
-  transform: translateY(-4px);
-  border-color: var(--c2);
+.tile img.icon { width: 30px; height: 30px; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)); }
+/* Dossiers, fichiers, sites : pictogramme dans un carré arrondi, comme une icône d'appli */
+.tile svg.icon {
+  width: 30px;
+  height: 30px;
+  padding: 6px;
+  border-radius: 8px;
+  stroke-width: 1.9;
+  color: var(--c1);
+  background: color-mix(in srgb, var(--c1) 18%, transparent);
 }
-.tile:hover .icon {
-  transform: scale(1.2) rotate(-8deg);
-  color: var(--c2);
+.tile .icon { transition: scale 0.35s var(--ease-spring); }
+.tile:hover { background: rgba(255, 255, 255, 0.07); }
+.tile:hover .icon { scale: 1.08; }
+.tile:active { scale: 0.94; }
+/* Ouverture : les tuiles arrivent l'une après l'autre (--i posé par app.ts) */
+.is-open .tiles .tile { animation: tile-in 0.5s var(--ease-spring) backwards; animation-delay: calc(0.26s + var(--i, 0) * 22ms); }
+@keyframes tile-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.9); }
 }
-.tile:active { transform: scale(0.94); }
 
 /* ---------- Volume + micro ---------- */
 .volume {
@@ -553,12 +532,11 @@ body:not(.is-playing) .icon-pause,
   padding: 4px 4px 4px 12px;
 }
 .volume > .icon { width: 18px; height: 18px; color: var(--text-2); }
-.volume .label { margin-right: 10px; }
 .volume-value {
-  width: 34px;
+  width: 30px;
   text-align: right;
-  font-family: var(--font-mono);
-  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-size: 12.5px;
   font-weight: 600;
   margin-right: 6px;
 }
@@ -573,29 +551,34 @@ input[type="range"] {
   cursor: pointer;
 }
 input[type="range"]::-webkit-slider-runnable-track {
-  height: 4px;
-  border-radius: 2px;
-  background: linear-gradient(var(--c1), var(--c1)) 0 / var(--fill) 100% no-repeat, rgba(255, 255, 255, 0.12);
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(var(--c1), var(--c1)) 0 / var(--fill) 100% no-repeat, rgba(255, 255, 255, 0.14);
 }
 input[type="range"]::-webkit-slider-thumb {
   appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   margin-top: -5px;
   border-radius: 50%;
-  background: var(--c1);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bg) 60%, transparent);
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  transition: scale 0.25s var(--ease-spring);
 }
+input[type="range"]:hover::-webkit-slider-thumb { scale: 1.15; }
+input[type="range"]:active::-webkit-slider-thumb { scale: 0.95; }
 
 .mic {
   width: 34px;
   height: 34px;
-  border-radius: 11px;
+  border-radius: 50%;
   background: rgba(255, 255, 255, 0.08);
   display: grid;
   place-items: center;
-  transition: background 0.2s, color 0.2s;
+  transition: background 0.2s, color 0.2s, scale 0.3s var(--ease-spring);
 }
+.mic:active { scale: 0.88; }
+.mic .icon { width: 17px; height: 17px; }
 .mic:hover { background: rgba(255, 255, 255, 0.14); }
 .mic.is-muted { background: var(--c2); color: var(--on-color); }
 
@@ -807,9 +790,15 @@ input[type="range"]::-webkit-slider-thumb {
 .pin.is-done { color: var(--c2); }
 .pin .icon { width: 15px; height: 15px; }
 
-/* Glisser-déposer des tuiles */
-.tile.is-dragging { opacity: 0.4; }
-.tile.is-drop-target { border-color: var(--c1); }
+/* Glisser-déposer des tuiles : la tuile tenue suit la souris, les autres s'écartent (app.ts) */
+.tile.is-held {
+  z-index: 2;
+  scale: 1.1;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+  transition: background 0.2s, scale 0.25s var(--ease-spring), box-shadow 0.25s;
+  cursor: grabbing;
+}
 
 /* ---------- Réglages ---------- */
 .settings { display: none; }

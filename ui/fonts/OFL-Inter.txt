@@ -1,6 +1,4 @@
-Copyright (c) 2022 Kasper Nordkvist.
-"Uncut Sans" is trademark of Kasper Nordkvist.
-https://uncut.wtf/sans-serif/uncut-sans.html
+Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

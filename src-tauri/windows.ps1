@@ -53,9 +53,15 @@ interface IMMDevice {
   int Activate(ref Guid iid, int clsCtx, IntPtr activationParams, [MarshalAs(UnmanagedType.IUnknown)] out object endpoint);
 }
 
+[ComImport, Guid("0BD7A1BE-7A1A-44DB-8397-CC5392387B5E"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IMMDeviceCollection {
+  int GetCount(out uint count);
+  int Item(uint index, out IMMDevice device);
+}
+
 [ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 interface IMMDeviceEnumerator {
-  int EnumAudioEndpoints(int dataFlow, int stateMask, out IntPtr devices);
+  int EnumAudioEndpoints(int dataFlow, int stateMask, out IMMDeviceCollection devices);
   int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice endpoint);
 }
 
@@ -69,6 +75,26 @@ public static class BarAudio {
     var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumerator();
     IMMDevice device;
     Marshal.ThrowExceptionForHR(enumerator.GetDefaultAudioEndpoint(flow, Multimedia, out device));
+    return Volume(device);
+  }
+
+  // Tous les micros branchés : une appli (Discord, Teams…) peut utiliser un autre micro que celui par défaut.
+  static System.Collections.Generic.List<IAudioEndpointVolume> Microphones() {
+    var enumerator = (IMMDeviceEnumerator)new MMDeviceEnumerator();
+    IMMDeviceCollection devices;
+    Marshal.ThrowExceptionForHR(enumerator.EnumAudioEndpoints(Capture, 1 /* actifs */, out devices));
+    uint count;
+    Marshal.ThrowExceptionForHR(devices.GetCount(out count));
+    var list = new System.Collections.Generic.List<IAudioEndpointVolume>();
+    for (uint i = 0; i < count; i++) {
+      IMMDevice device;
+      Marshal.ThrowExceptionForHR(devices.Item(i, out device));
+      list.Add(Volume(device));
+    }
+    return list;
+  }
+
+  static IAudioEndpointVolume Volume(IMMDevice device) {
     var iid = typeof(IAudioEndpointVolume).GUID;
     object endpoint;
     Marshal.ThrowExceptionForHR(device.Activate(ref iid, ClsctxAll, IntPtr.Zero, out endpoint));
@@ -86,15 +112,20 @@ public static class BarAudio {
     Marshal.ThrowExceptionForHR(Endpoint(Render).SetMasterVolumeLevelScalar(level, ref context));
   }
 
+  // Coupé = tous les micros coupés (sans micro : non coupé).
   public static bool GetMicMuted() {
-    bool muted;
-    Marshal.ThrowExceptionForHR(Endpoint(Capture).GetMute(out muted));
-    return muted;
+    var mics = Microphones();
+    foreach (var mic in mics) {
+      bool muted;
+      Marshal.ThrowExceptionForHR(mic.GetMute(out muted));
+      if (!muted) return false;
+    }
+    return mics.Count > 0;
   }
 
   public static void SetMicMuted(bool muted) {
     var context = Guid.Empty;
-    Marshal.ThrowExceptionForHR(Endpoint(Capture).SetMute(muted, ref context));
+    foreach (var mic in Microphones()) Marshal.ThrowExceptionForHR(mic.SetMute(muted, ref context));
   }
 }
 '@

@@ -13,7 +13,7 @@ export const THEMES = [
 
 // Police de toute l'appli : titres et horloge, texte courant, petites étiquettes.
 export const FONTS = [
-  { id: 'minimal', name: 'Minimal' },
+  { id: 'minimal', name: 'Apple (Inter)' },
   { id: 'pixel', name: 'Pixel art' },
   { id: 'literary', name: 'Littéraire' },
 ] as const;

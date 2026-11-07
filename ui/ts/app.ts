@@ -70,7 +70,7 @@ agenda.addEventListener('mouseleave', () => {
 });
 // Dans les réglages, la souris peut sortir (fenêtre de choix de fichier…) sans tout refermer.
 panel.addEventListener('mouseleave', () => {
-  if (!body.classList.contains('is-settings') && !menuOpen && !passthrough) later(false, CLOSE_DELAY);
+  if (!body.classList.contains('is-settings') && !menuOpen && !passthrough && !held?.moved) later(false, CLOSE_DELAY);
 });
 $('collapse').addEventListener('click', () => setOpen(false));
 document.addEventListener('keydown', (event) => {
@@ -197,7 +197,6 @@ function refreshBackdrop() {
 // Tuiles construites depuis la config (Rust) : nom, vraie icône des applis, sinon un pictogramme.
 // On les déplace par glisser-déposer ; le nouvel ordre est enregistré.
 const tilesEl = $('tiles');
-const tileCount = $('tile-count');
 const SYMBOLS: Record<string, string> = {
   app: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/>',
   file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
@@ -226,24 +225,20 @@ function iconImage(src: string): HTMLImageElement {
   img.className = 'icon';
   img.src = src;
   img.alt = '';
+  img.draggable = false; // sinon le navigateur fait glisser l'image au lieu de déplacer la tuile
   return img;
 }
 
-function makeTile(number: number, name: string, icon: Element): HTMLButtonElement {
+function makeTile(name: string, icon: Element): HTMLButtonElement {
   const tile = document.createElement('button');
   tile.className = 'tile';
   tile.title = name; // nom complet au survol, s'il est coupé (…)
-  const num = document.createElement('span');
-  num.className = 'num';
-  num.textContent = String(number).padStart(2, '0');
   const label = document.createElement('span');
   label.className = 'name';
   label.textContent = name;
-  tile.append(num, icon, label);
+  tile.append(icon, label);
   return tile;
 }
-
-let dragFrom: number | null = null;
 
 function moveTile(from: number, to: number) {
   if (from === to || !settings) return;
@@ -255,39 +250,90 @@ function moveTile(from: number, to: number) {
 async function refreshTiles() {
   const shortcuts = await bar.getShortcuts();
   tilesEl.replaceChildren(...shortcuts.map((shortcut: TileInfo, index) => {
-    const tile = makeTile(index + 1, shortcut.name, shortcut.icon ? iconImage(shortcut.icon) : symbol(shortcut.type));
-    tile.draggable = true;
+    const tile = makeTile(shortcut.name, shortcut.icon ? iconImage(shortcut.icon) : symbol(shortcut.type));
+    tile.style.setProperty('--i', String(index)); // arrivée l'une après l'autre (styles.css)
+    tile.addEventListener('pointerdown', (event) => startHold(tile, index, event));
     tile.addEventListener('click', async () => {
+      if (justDragged) return; // un déplacement n'est pas un clic
       if (shortcut.type === 'settings') openSettings();
       else if (await bar.launch(index)) setOpen(false);
     });
-    tile.addEventListener('dragstart', (event) => {
-      dragFrom = index;
-      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
-      tile.classList.add('is-dragging');
-    });
-    tile.addEventListener('dragend', () => {
-      dragFrom = null;
-      tile.classList.remove('is-dragging');
-    });
-    tile.addEventListener('dragover', (event) => {
-      if (dragFrom === null) return;
-      event.preventDefault();
-      tile.classList.add('is-drop-target');
-    });
-    tile.addEventListener('dragleave', () => tile.classList.remove('is-drop-target'));
-    tile.addEventListener('drop', (event) => {
-      event.preventDefault();
-      tile.classList.remove('is-drop-target');
-      if (dragFrom !== null) moveTile(dragFrom, index);
-    });
     return tile;
   }));
-  tileCount.textContent = String(shortcuts.length).padStart(2, '0');
   if (!body.classList.contains('is-open')) syncPillWidth();
 }
 
 refreshTiles();
+
+// ---------- Déplacer les tuiles dans le panneau ----------
+// On attrape une tuile et on la fait glisser : elle suit la souris, les autres s'écartent en douceur.
+// Le nouvel ordre est enregistré quand on lâche. (Le glisser-déposer du HTML ne marche pas dans Tauri.)
+const DRAG_START = 6; // px parcourus avant qu'un appui devienne un déplacement
+const SLIDE = { duration: 280, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' };
+interface Held { tile: HTMLElement; from: number; x: number; y: number; left: number; top: number; moved: boolean }
+let held: Held | null = null;
+let justDragged = false;
+
+function startHold(tile: HTMLElement, from: number, event: PointerEvent) {
+  justDragged = false;
+  if (event.button !== 0) return;
+  held = { tile, from, x: event.clientX, y: event.clientY, left: tile.offsetLeft, top: tile.offsetTop, moved: false };
+}
+
+// Les autres tuiles glissent de leur ancienne place vers la nouvelle (technique « FLIP »).
+function reorder(change: () => void) {
+  const others = ([...tilesEl.children] as HTMLElement[]).filter((t) => t !== held?.tile);
+  const before = others.map((t) => [t.offsetLeft, t.offsetTop]);
+  change();
+  others.forEach((t, i) => {
+    const dx = before[i][0] - t.offsetLeft;
+    const dy = before[i][1] - t.offsetTop;
+    if (dx || dy) t.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], SLIDE);
+  });
+}
+
+document.addEventListener('pointermove', (event) => {
+  if (!held) return;
+  const { tile } = held;
+  if (!held.moved) {
+    if (Math.hypot(event.clientX - held.x, event.clientY - held.y) < DRAG_START) return;
+    held.moved = true;
+    tile.classList.add('is-held');
+    tile.setPointerCapture(event.pointerId);
+  }
+  // Tuile sous la souris (positions dans la grille, sans les animations en cours).
+  const parent = tile.offsetParent as HTMLElement;
+  const box = parent.getBoundingClientRect();
+  const x = event.clientX - box.left - parent.clientLeft;
+  const y = event.clientY - box.top - parent.clientTop;
+  const over = ([...tilesEl.children] as HTMLElement[]).find((t) => t !== tile
+    && x >= t.offsetLeft && x < t.offsetLeft + t.offsetWidth && y >= t.offsetTop && y < t.offsetTop + t.offsetHeight);
+  if (over) {
+    const list = [...tilesEl.children];
+    reorder(() => (list.indexOf(over) > list.indexOf(tile) ? over.after(tile) : over.before(tile)));
+  }
+  // La tuile tenue suit la souris, depuis sa place actuelle dans la grille.
+  const dx = event.clientX - held.x + held.left - tile.offsetLeft;
+  const dy = event.clientY - held.y + held.top - tile.offsetTop;
+  tile.style.transform = `translate(${dx}px, ${dy}px)`;
+});
+
+function dropHeld() {
+  if (!held) return;
+  const { tile, from, moved } = held;
+  held = null;
+  if (!moved) return;
+  justDragged = true;
+  tile.classList.remove('is-held');
+  // Retour en douceur à sa nouvelle place, puis enregistrement de l'ordre.
+  const to = [...tilesEl.children].indexOf(tile);
+  tile.animate([{ transform: tile.style.transform || 'none' }, { transform: 'none' }], SLIDE);
+  tile.style.transform = '';
+  moveTile(from, to);
+}
+document.addEventListener('pointerup', dropHeld);
+document.addEventListener('pointercancel', dropHeld);
+window.addEventListener('blur', dropHeld);
 
 // ---------- Recherche d'applis du PC ----------
 // La loupe du panneau (ou Alt+Maj+Espace) ouvre la recherche au milieu de l'écran, et la barre se replie.
@@ -410,7 +456,7 @@ function renderResults() {
   closeMenu();
   resultsEl.replaceChildren(...results.map((result, i) => {
     const icon = symbol('app');
-    const tile = makeTile(i + 1, result.name, icon);
+    const tile = makeTile(result.name, icon);
     tile.addEventListener('click', () => launchResult(i));
     tile.addEventListener('contextmenu', (event) => {
       event.preventDefault();
@@ -971,7 +1017,7 @@ $('source-import').addEventListener('click', async () => {
 const timeEl = $('time');
 const pillTimeEl = $('pill-time');
 const dateEl = $('date');
-const dateFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+const dateFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'short' });
 
 function renderClock() {
   const now = new Date();
@@ -979,7 +1025,8 @@ function renderClock() {
   const mm = String(now.getMinutes()).padStart(2, '0');
   timeEl.innerHTML = `${hh}<span class="colon">:</span>${mm}`;
   pillTimeEl.textContent = `${hh}:${mm}`;
-  dateEl.textContent = dateFormat.format(now).toUpperCase();
+  const date = dateFormat.format(now); // « samedi 7 nov. » → « Samedi 7 nov. »
+  dateEl.textContent = date.charAt(0).toUpperCase() + date.slice(1);
   syncPillWidth();
   setTimeout(renderClock, 60000 - (now.getSeconds() * 1000 + now.getMilliseconds()));
 }
@@ -1178,11 +1225,10 @@ volume.addEventListener('input', () => {
   }, VOLUME_THROTTLE);
 });
 
+// Après le clic, on relit le vrai état : il compte pour tous les micros branchés.
 mic.addEventListener('click', async () => {
-  if (await bar.setMicMuted(!micMuted)) {
-    micMuted = !micMuted;
-    renderMic();
-  }
+  await bar.setMicMuted(!micMuted);
+  await refreshAudio();
 });
 
 renderVolume();

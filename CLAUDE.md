@@ -69,9 +69,10 @@ Fidélité à la maquette : c'est la référence. Une capture est fournie par l'
 - Texte : `#F4F4F5` ; texte secondaire : `#B4B4BC` ; texte sur les couleurs : `#0A0A0B`
 
 **Polices** (fichiers en local dans `ui/fonts/`, licences libres OFL)
-- **Bricolage Grotesque** : horloge (60 px, graisse 800, interlettrage -0.05em) et titre du morceau (19 px, 700)
-- **Uncut Sans** : tout le texte courant (github.com/kaspernordkvist/uncut_sans)
-- **JetBrains Mono** : petites étiquettes en majuscules (10,5 px, interlettrage 0.14em : EN COURS, RACCOURCIS, VOLUME), chiffres, date
+- 2.0, style « à la Apple » demandé par l'utilisateur : **Inter** (OFL, rsms.me/inter, `InterVariable.woff2`) partout,
+  la plus proche de la police d'Apple. Horloge 44 px graisse 600, chiffres à chasse fixe ; titre du morceau 15 px, 600 ;
+  étiquettes en minuscules, 11,5 px, 600, grises (« En cours », « Raccourcis ») ; date en toutes lettres (« Samedi 7 nov. »).
+  (Avant : Bricolage Grotesque, Uncut Sans, JetBrains Mono en majuscules, retirées.)
 
 **Formes**
 - Panneau : 520 px de large (`--panel-w`), padding 12 px, coins 24 px, tuiles de 64 px, horloge 44 px
@@ -79,16 +80,18 @@ Fidélité à la maquette : c'est la référence. Une capture est fournie par l'
 - **Ctrl** enfoncé avec la souris sur la barre : les clics la traversent (la barre pâlit), elle reste ouverte.
 - Depuis la 2.0 : pilule, panneau et agenda collés au haut de l'écran (seuls les coins du bas sont arrondis) ; la fenêtre couvre
   toute la zone de travail (transparente, clics traversants). Ligne vers les bords de l'écran essayée puis retirée (demande de l'utilisateur).
-- Haut du panneau : carte musique à gauche, carte horloge (190 px) à droite. Puis 6 tuiles de 88 px (coins 20 px) numérotées 01 à 06,
+- Haut du panneau : carte musique à gauche, carte horloge (190 px) à droite. Puis 6 tuiles de 88 px (coins 20 px) (2.0 : sans numéros, icône d'appli 30 px sur fond transparent),
   puis la ligne volume + micro.
 - Boutons d'au moins 44 × 44 px dans les réglages ; dans le panneau réduit (2.0), 32 à 38 px. Icônes : traits simples (style Lucide).
 
 **Animations**
 - Ouverture : la pilule s'étire jusqu'au panneau (un seul fond découpé par `clip-path`, ~0,65 s, sans rebond) ; le contenu apparaît ensuite,
   et le flou arrive en fondu depuis le fond sombre (choix de l'utilisateur en phase 3, à la place du « scale » depuis 0.35 × 0.15).
-- Tuiles au survol : montent de 4 px, contour en couleur 2, l'icône grossit (×1,2) en penchant de -8° et passe en couleur 2. Au clic : s'enfoncent (×0,94).
+- Tuiles (2.0) : fond léger au survol, l'icône grossit (×1,08) avec un léger rebond ; au clic ×0,94 ; à l'ouverture elles arrivent
+  l'une après l'autre. Déplaçables à la souris dans le panneau (les autres s'écartent en glissant), ordre enregistré au lâcher.
 - Précédent / suivant : l'icône glisse de 3 px dans sa direction au survol.
-- Bouton lecture : grossit au survol ; pendant la lecture, une onde en couleur 2 pulse autour.
+- Lecture / précédent / suivant (2.0) : pictogrammes pleins sans fond coloré, fond léger au survol, s'enfoncent au clic (plus d'onde).
+- Volume (2.0) : curseur façon macOS (piste 6 px, bouton blanc) ; micro rond.
 - Égaliseur : barres qui dansent pendant la lecture, figées en pause.
 - Respecter `prefers-reduced-motion` (couper les animations).
 
@@ -106,7 +109,8 @@ et que l'utilisateur a validé à l'écran ce qui ne peut être vérifié que su
    Windows Terminal. Raccourcis définis dans la config. Depuis la 2.0 : une appli (tuile ou recherche) déjà lancée
    revient au premier plan au lieu d'être relancée (fenêtre trouvée par `windows.ps1`, activée par Rust).
 6. **Auto-masquage** (option) : la barre glisse hors de l'écran, revient quand la souris touche le haut.
-7. **Volume et micro** : lire et régler le volume système, couper le micro.
+7. **Volume et micro** : lire et régler le volume système, couper le micro (2.0 : tous les micros branchés, pas seulement
+   celui par défaut ; l'état affiché est relu après chaque clic).
 8. **Musique** : titre/artiste en cours, lecture/pause, suivant/précédent (Spotify, navigateur…). C'est la partie la plus technique :
    chercher dans la documentation la solution la plus simple et fiable, et l'expliquer avant de la coder.
 9. **Réglages** : panneau pour les deux couleurs, la transparence, les raccourcis, l'auto-masquage ; enregistrés et rechargés au démarrage.
@@ -124,7 +128,7 @@ Ajouts demandés après la phase 9 (avant l'installateur) :
   Clic droit sur un résultat : petit menu dans le panneau (HTML depuis la 2.0) (ouvrir, créer un raccourci dans la barre ou sur le Bureau, ouvrir l'emplacement du fichier).
 - **Thèmes** (`ui/ts/themes.ts`) : 5 thèmes de 4 couleurs (fond, cartes, couleur 1, couleur 2) tirés des palettes Lospec
   envoyées par l'utilisateur (Minimal, Pastel Landscape, Mighty Retro Zero, Spaceship 25, Apollo) ; chaque couleur reste modifiable.
-- **Police** au choix : Minimal (Bricolage / Uncut Sans / JetBrains Mono), Pixel art (Pixelify Sans / Silkscreen, tailles
+- **Police** au choix : Apple (Inter ; identifiant « minimal » gardé), Pixel art (Pixelify Sans / Silkscreen, tailles
   choisies pour rester nettes), Littéraire (Fraunces). Toutes en OFL, dans `ui/fonts/`.
 - **Agenda** : clic sur l'horloge → panneau qui se déplie à droite du panneau principal (fenêtre élargie à 1400 px,
   transparente). Une semaine à la fois (‹ › et « Aujourd'hui »), en lecture seule. Sources : liens iCal (https ou webcal,
