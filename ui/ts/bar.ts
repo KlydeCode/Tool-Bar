@@ -38,6 +38,7 @@ export interface SaveResult { ok: boolean; error?: string; settings: Settings }
 export interface Startup { available: boolean; enabled: boolean }
 export interface TileInfo { name: string; type: TileType; icon: string | null }
 export interface Audio { volume: number | null; micMuted: boolean | null }
+export interface AppNotification { id: number; app: string; title: string; body: string; time: number }
 export interface CalendarInfo { id: string; name: string; type: 'url' | 'file'; error: string }
 // Rectangle (x, y, largeur, hauteur) en pixels CSS de la fenêtre.
 export type Rect = [number, number, number, number];
@@ -80,6 +81,9 @@ export const bar = {
   addCalendar: (url: string) => invoke<SaveResult>('add_calendar', { url }),
   importCalendar: () => invoke<SaveResult>('import_calendar'),
   removeCalendar: (id: string) => invoke<SaveResult>('remove_calendar', { id }),
+  // Notifications des applis (les 10 dernières) et icône de l'appli d'une notification.
+  getNotifications: () => invoke<AppNotification[]>('get_notifications'),
+  getNotificationIcon: (id: number) => invoke<string | null>('get_notification_icon', { id }),
   // Signaux sans données venant de Rust : raccourci clavier global, perte du focus.
   onToggle: (callback: () => void) => listen('bar:toggle', callback),
   onClose: (callback: () => void) => listen('bar:close', callback),

@@ -12,6 +12,8 @@
 #   apps                                 -> applis du menu Démarrer en JSON [{ name, id }] (liste gardée ici)
 #   app-icon 12                          -> icône de l'appli n° 12 de cette liste, en PNG base64
 #   app-path 12                          -> fichier de l'appli n° 12 (.exe, ou dossier pour le Microsoft Store)
+#   notifs                               -> 10 dernières notifications des applis en JSON [{ id, app, title, body, time }]
+#   notif-icon 1729                      -> icône de l'appli de la notification n° 1729, en PNG base64
 #   file-icon <chemin>                   -> icône d'un fichier (32 px) en PNG base64
 #   package-dir <nom>                    -> dossier d'installation d'une appli du Microsoft Store
 #   lnk <fichier> <cible> <arguments> <icône> -> « ok » : raccourci .lnk créé
@@ -314,6 +316,45 @@ function Invoke-MediaControl($action) {
   if (Await $operation ([bool])) { 'ok' } else { '' }
 }
 
+# Notifications des applis (celles du centre de notifications de Windows).
+# Accès réglé par Windows : Paramètres > Confidentialité > Notifications. Sans accès, la liste est vide.
+$null = [Windows.UI.Notifications.Management.UserNotificationListener, Windows.UI.Notifications, ContentType = WindowsRuntime]
+try {
+  $notifListener = [Windows.UI.Notifications.Management.UserNotificationListener]::Current
+  $access = Await ($notifListener.RequestAccessAsync()) ([Windows.UI.Notifications.Management.UserNotificationListenerAccessStatus])
+  if ($access -ne 'Allowed') { $notifListener = $null }
+} catch {
+  $notifListener = $null
+}
+
+function Get-Notifications {
+  if (-not $notifListener) { return '[]' }
+  $list = Await ($notifListener.GetNotificationsAsync([Windows.UI.Notifications.NotificationKinds]::Toast)) ([System.Collections.Generic.IReadOnlyList[Windows.UI.Notifications.UserNotification]])
+  $items = @($list | Sort-Object CreationTime -Descending | Select-Object -First 10 | ForEach-Object {
+    $binding = $_.Notification.Visual.GetBinding([Windows.UI.Notifications.KnownNotificationBindings]::ToastGeneric)
+    $texts = @(if ($binding) { $binding.GetTextElements() | ForEach-Object { [string]$_.Text } })
+    [ordered]@{
+      id    = $_.Id
+      app   = [string]$_.AppInfo.DisplayInfo.DisplayName
+      title = [string]($texts | Select-Object -First 1)
+      body  = (@($texts | Select-Object -Skip 1) -join ' ')
+      time  = $_.CreationTime.ToUnixTimeMilliseconds()
+    }
+  })
+  ConvertTo-Json -Compress -InputObject $items
+}
+
+function Get-NotificationIcon($id) {
+  if (-not $notifListener -or $id -lt 0 -or $id -gt [uint32]::MaxValue) { return '' }
+  $notification = $notifListener.GetNotification([uint32]$id)
+  if (-not $notification) { return '' }
+  $icon = [BarAppIcons]::Get($notification.AppInfo.AppUserModelId, 48)
+  $ms = New-Object System.IO.MemoryStream
+  $icon.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+  $icon.Dispose()
+  [Convert]::ToBase64String($ms.ToArray())
+}
+
 # Applis du PC : la liste du menu Démarrer (applis classiques et du Microsoft Store).
 # Island désigne ensuite une appli par son numéro dans cette liste, jamais par un texte.
 $appList = @()
@@ -361,6 +402,8 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
       'apps' { Get-Apps }
       'app-icon' { Get-AppIcon (Get-Numbers $parts 1) }
       'app-path' { Get-AppPath (Get-Numbers $parts 1) }
+      'notifs' { Get-Notifications }
+      'notif-icon' { Get-NotificationIcon (Get-Numbers $parts 1) }
       'file-icon' { Get-FileIcon (Get-Text $parts 1) }
       'package-dir' { (Get-AppxPackage -Name (Get-Text $parts 1) | Select-Object -First 1).InstallLocation }
       'lnk' {

@@ -67,12 +67,12 @@ body[data-font="pixel"] .label,
 body[data-font="pixel"] .times,
 body[data-font="pixel"] .tile .num,
 body[data-font="pixel"] .tile-row .num { font-size: 9px; }
+body[data-font="pixel"] .pill,
 body[data-font="pixel"] .volume-value,
 body[data-font="pixel"] .key,
 body[data-font="pixel"] .set-value { font-size: 12px; }
 body[data-font="pixel"] .title { font-size: 18px; }
 body[data-font="pixel"] .artist,
-body[data-font="pixel"] .pill,
 body[data-font="pixel"] .tile .name,
 body[data-font="pixel"] .field,
 body[data-font="pixel"] .set-row,
@@ -148,26 +148,50 @@ button:focus-visible, input:focus-visible {
   transition-duration: 0.3s;
 }
 
+/* ---------- Ligne du haut de l'écran ----------
+   Fine ligne sur toute la largeur, sous la pilule : elle part de la pilule vers les bords au démarrage
+   et à chaque notification. Elle reste visible quand la barre est masquée (repère pour la faire revenir). */
+.edge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--c2) 55%, transparent);
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.edge.is-spreading { animation: edge-spread 0.9s var(--ease-out); }
+.has-notif .edge {
+  background: var(--c2);
+  box-shadow: 0 0 8px var(--c2);
+}
+@keyframes edge-spread {
+  from { transform: scaleX(0); opacity: 0.3; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+
 /* ---------- Pilule ↔ panneau ----------
    Un seul fond : le panneau. Replié, il est découpé (clip-path) à la taille de la pilule ;
    à l'ouverture, la découpe s'étire jusqu'au panneau entier. La pilule ne porte que son texte. */
 .pill, .panel {
   position: absolute;
-  top: 8px;
+  top: 0; /* collés au haut de l'écran : seuls les coins du bas sont arrondis */
   left: 50%;
   transform: translateX(-50%);
 }
 .pill {
   z-index: 1;
-  height: 40px;
-  max-width: 360px;
-  padding: 0 18px 0 16px;
+  height: 32px;
+  max-width: 300px;
+  padding: 0 14px 0 12px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  border-radius: 999px;
+  gap: 8px;
+  border-radius: 0 0 14px 14px;
   border: 1px solid var(--border);
-  font-size: 13px;
+  border-top: 0;
+  font-size: 12px;
   /* Le texte revient quand le panneau a fini de se replier */
   transition: opacity 0.25s ease 0.4s;
 }
@@ -193,9 +217,40 @@ body:not(.has-music) .times,
 }
 .pill-time {
   font-family: var(--font-display);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--c2);
+}
+
+/* Notification d'une appli : remplace le morceau quelques secondes, la pilule s'élargit */
+.pill-notif {
+  display: none;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.has-notif .pill { max-width: 480px; }
+.has-notif .pill-notif { display: flex; }
+.has-notif .pill-title,
+.has-notif .pill .eq { display: none; }
+.notif-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border-radius: 4px;
+}
+.notif-icon[hidden] { display: none; }
+.notif-app {
+  flex: none;
+  font-weight: 600;
+  color: var(--text);
+}
+.notif-text {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-2);
 }
 
 .panel {
@@ -203,21 +258,22 @@ body:not(.has-music) .times,
   --ease-morph: cubic-bezier(0.32, 0.72, 0, 1);
   width: 680px;
   padding: 18px;
-  border-radius: 32px;
+  border-radius: 0 0 32px 32px;
   border: 1px solid var(--border);
+  border-top: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
   overflow: hidden;
   isolation: isolate;
   pointer-events: none;
-  /* Replié : seule la zone de la pilule (40 px de haut, centrée) est visible */
-  clip-path: inset(0 calc(50% - var(--pill-w) / 2) calc(100% - 40px) round 20px);
+  /* Replié : seule la zone de la pilule (32 px de haut, centrée) est visible */
+  clip-path: inset(0 calc(50% - var(--pill-w) / 2) calc(100% - 32px) round 0 0 14px 14px);
   transition: clip-path 0.5s var(--ease-morph);
 }
 .is-open .panel {
   pointer-events: auto;
-  clip-path: inset(0 0 0 0 round 32px);
+  clip-path: inset(0 0 0 0 round 0 0 32px 32px);
   transition: clip-path 0.65s var(--ease-morph);
 }
 /* Le contenu apparaît une fois le fond bien étiré, et disparaît avant qu'il se replie */
@@ -232,10 +288,10 @@ body:not(.has-music) .times,
 /* Fond du panneau en deux couches sous le contenu : la capture de l'écran déjà floutée
    (canvas, voir app.js), puis la teinte sombre. Le flou apparaît en fondu depuis le noir. */
 .backdrop {
-  /* Le canvas couvre toute la fenêtre : le panneau (bordure comprise) est à 21 px du bord gauche et 9 px du haut. */
+  /* Le canvas couvre toute la fenêtre : il est décalé de la position du panneau (bordure de gauche comprise). */
   position: absolute;
   left: calc((680px - 100vw) / 2 - 1px);
-  top: -9px;
+  top: 0;
   width: 100vw;
   height: 100vh;
   z-index: -1;
@@ -570,13 +626,14 @@ input[type="range"]::-webkit-slider-thumb {
 .is-agenda .clock { outline: 1px solid var(--c2); }
 .agenda {
   position: absolute;
-  top: 8px;
+  top: 0;
   left: calc(50% + 352px); /* 340 px = moitié du panneau, + 12 px d'écart */
   width: 340px;
   height: var(--agenda-h, 440px);
   padding: 18px;
-  border-radius: 32px;
+  border-radius: 0 0 32px 32px;
   border: 1px solid var(--border);
+  border-top: 0;
   overflow: hidden;
   isolation: isolate;
   display: flex;
@@ -585,13 +642,13 @@ input[type="range"]::-webkit-slider-thumb {
   opacity: 0;
   pointer-events: none;
   /* Se déplie depuis le bord du panneau principal */
-  clip-path: inset(0 100% 0 0 round 32px);
+  clip-path: inset(0 100% 0 0 round 0 0 32px 32px);
   transition: clip-path 0.35s var(--ease-out), opacity 0.2s;
 }
 .is-open.is-agenda .agenda {
   opacity: 1;
   pointer-events: auto;
-  clip-path: inset(0 0 0 0 round 32px);
+  clip-path: inset(0 0 0 0 round 0 0 32px 32px);
   transition: clip-path 0.5s var(--ease-out), opacity 0.2s;
 }
 .agenda .backdrop { left: calc(-50vw - 353px); }

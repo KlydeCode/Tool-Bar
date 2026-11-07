@@ -6,11 +6,19 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <!-- Ligne du haut de l'écran : part de la pilule jusqu'aux bords (reste visible quand la barre est masquée) -->
+  <div class="edge" id="edge" aria-hidden="true"></div>
   <!-- Conteneur glissé hors de l'écran quand l'auto-masquage est actif -->
   <div class="bar">
   <button class="pill" id="pill" aria-label="Ouvrir la barre" aria-expanded="false">
     <span class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
     <span class="pill-title" id="pill-title"></span>
+    <!-- Notification d'une appli, affichée quelques secondes à la place du morceau -->
+    <span class="pill-notif" id="pill-notif" role="status">
+      <img class="notif-icon" id="notif-icon" alt="">
+      <span class="notif-app" id="notif-app"></span>
+      <span class="notif-text" id="notif-text"></span>
+    </span>
     <span class="pill-time" id="pill-time">23:20</span>
   </button>
 

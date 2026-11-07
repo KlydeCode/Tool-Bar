@@ -1,4 +1,4 @@
-import { bar, type Rect, type SaveResult, type Settings, type Tile, type TileInfo } from './bar.js';
+import { bar, type AppNotification, type Rect, type SaveResult, type Settings, type Tile, type TileInfo } from './bar.js';
 import { eventsBetween, weekStart, type CalendarEvent } from './calendar.js';
 import { currentPosition, formatTime, type Media } from './media.js';
 import { searchApps, type StartApp } from './search.js';
@@ -93,6 +93,7 @@ bar.onClose(() => setOpen(false));
 const HIDE_DELAY = 800; // après la fermeture ou le départ de la souris
 const PEEK_DELAY = 1500; // revenue sans être survolée : repart après ce délai
 const TOP_EDGE = 2; // pixels en haut de l'écran qui font revenir la barre
+const TOP_ZONE = 1400; // largeur (au centre) de cette zone : la fenêtre fait tout l'écran
 let autoHide = false;
 let hideTimer: number | undefined;
 let hovered = false; // souris sur la pilule, le panneau ou l'agenda
@@ -130,7 +131,7 @@ function rectOf(el: Element): Rect {
 
 function sendHitRects() {
   let rects: Rect[];
-  if (body.classList.contains('is-hidden')) rects = [[0, 0, window.innerWidth, TOP_EDGE + 1]];
+  if (body.classList.contains('is-hidden')) rects = [[(window.innerWidth - TOP_ZONE) / 2, 0, TOP_ZONE, TOP_EDGE + 1]];
   else if (!body.classList.contains('is-open')) rects = [rectOf(pill)];
   else rects = body.classList.contains('is-agenda') ? [rectOf(panel), rectOf(agenda)] : [rectOf(panel)];
   bar.setHitRects(rects);
@@ -1068,6 +1069,56 @@ next.addEventListener('click', () => control('next'));
 
 refreshMedia();
 setInterval(refreshMedia, MEDIA_POLL);
+
+// ---------- Notifications des applis ----------
+// Une nouvelle notification (Discord, Outlook, Teams…) s'affiche quelques secondes dans la pilule,
+// et la ligne du haut repart de la pilule vers les bords. Les notifications déjà là au démarrage sont ignorées.
+const NOTIF_POLL = 2000; // ms
+const NOTIF_SHOW = 6000; // ms
+const edge = $('edge');
+const notifIcon = $<HTMLImageElement>('notif-icon');
+const notifApp = $('notif-app');
+const notifText = $('notif-text');
+const notifIcons = new Map<string, string>(); // nom de l'appli → icône
+let seenNotifs: Set<number> | null = null;
+let notifTimer: number | undefined;
+
+// La ligne part de la pilule et s'étend jusqu'aux bords de l'écran.
+function spreadEdge() {
+  edge.classList.remove('is-spreading');
+  void edge.offsetWidth; // relance l'animation
+  edge.classList.add('is-spreading');
+}
+
+async function showNotification(notif: AppNotification) {
+  const icon = notifIcons.get(notif.app) ?? await bar.getNotificationIcon(notif.id);
+  if (icon) notifIcons.set(notif.app, icon);
+  notifIcon.hidden = !icon;
+  if (icon) notifIcon.src = icon;
+  notifApp.textContent = notif.app;
+  notifText.textContent = notif.body ? `${notif.title} · ${notif.body}` : notif.title;
+  body.classList.add('has-notif');
+  showBar();
+  spreadEdge();
+  syncPillWidth();
+  clearTimeout(notifTimer);
+  notifTimer = setTimeout(() => {
+    body.classList.remove('has-notif');
+    syncPillWidth();
+    scheduleHide(HIDE_DELAY);
+  }, NOTIF_SHOW);
+}
+
+async function pollNotifications() {
+  const list = await bar.getNotifications();
+  const fresh = seenNotifs ? list.filter((n) => !seenNotifs?.has(n.id)) : [];
+  seenNotifs = new Set(list.map((n) => n.id));
+  if (fresh.length) showNotification(fresh.reduce((a, b) => (b.time > a.time ? b : a)));
+}
+
+spreadEdge();
+pollNotifications();
+setInterval(pollNotifications, NOTIF_POLL);
 
 // ---------- Volume et micro ----------
 // Vrai volume du système et vrai micro (via Rust). Relus à chaque ouverture du panneau,

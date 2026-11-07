@@ -74,7 +74,9 @@ Fidélité à la maquette : c'est la référence. Une capture est fournie par l'
 - **JetBrains Mono** : petites étiquettes en majuscules (10,5 px, interlettrage 0.14em : EN COURS, RACCOURCIS, VOLUME), chiffres, date
 
 **Formes**
-- Panneau : 680 px de large, padding 18 px, coins 32 px. Pilule : 40 px de haut, coins arrondis complets.
+- Panneau : 680 px de large, padding 18 px, coins 32 px. Pilule : 32 px de haut (40 px avant la 2.0).
+- Depuis la 2.0 : pilule, panneau et agenda collés au haut de l'écran (seuls les coins du bas sont arrondis) ; fenêtre sur toute
+  la largeur ; fine ligne en couleur 2 en haut de l'écran, qui part de la pilule vers les bords au démarrage et à chaque notification.
 - Haut du panneau : carte musique à gauche, carte horloge (190 px) à droite. Puis 6 tuiles de 88 px (coins 20 px) numérotées 01 à 06,
   puis la ligne volume + micro.
 - Boutons d'au moins 44 × 44 px. Icônes : traits simples (style Lucide).
@@ -124,6 +126,9 @@ Ajouts demandés après la phase 9 (avant l'installateur) :
   transparente). Une semaine à la fois (‹ › et « Aujourd'hui »), en lecture seule. Sources : liens iCal (https ou webcal,
   relus toutes les 15 min, sans connexion à un compte) ou fichiers .ics importés ; copie dans `userData/calendars/`.
   Lecture avec `ical.js` (Mozilla, seule dépendance ajoutée, accord de l'utilisateur). Pas de rappels ni d'affichage dans la pilule.
+
+- **Notifications** (2.0) : les nouvelles notifications des applis Windows (UserNotificationListener, via `windows.ps1`,
+  relu toutes les 2 s) s'affichent 6 s dans la pilule (icône, appli, texte) ; celles déjà là au démarrage sont ignorées.
 
 Hors périmètre pour l'instant : l'API Claude (pas de clé API), Mac/Linux.
 

@@ -24,8 +24,8 @@ use tauri_plugin_opener::OpenerExt;
 use helper::{arg, Helper};
 use launch::{resolve_shortcut, Target};
 
-// Taille fixe, en grande partie transparente (les clics la traversent) ; pilule et panneaux sont dessinés dedans.
-const WIDTH: f64 = 1400.0; // panneau (680 px) centré + panneau Agenda (340 px) à sa droite, de chaque côté
+// Toute la largeur de l'écran (la ligne du haut va jusqu'aux bords), en grande partie transparente :
+// les clics la traversent ; pilule, panneau et agenda sont dessinés dedans, au centre.
 const HEIGHT: f64 = 700.0; // jusqu'à 3 rangées de tuiles + la recherche
 const DEFAULTS: &str = include_str!("../../config.default.json");
 const BACKDROP_SCALE: f64 = 0.25; // l'image est floutée : une petite capture suffit
@@ -68,13 +68,12 @@ fn data_url(kind: &str, base64: String) -> Option<String> {
 }
 
 // ---------- Fenêtre ----------
-// Centrée en haut de la zone de travail (hors barre des tâches) de l'écran principal.
+// Collée en haut de la zone de travail (hors barre des tâches) de l'écran principal, sur toute sa largeur.
 fn place_window(win: &WebviewWindow) {
     let Ok(Some(monitor)) = win.primary_monitor() else { return };
     let area = monitor.work_area();
-    let width = (WIDTH * monitor.scale_factor()).round() as i32;
-    let _ = win.set_size(LogicalSize::new(WIDTH, HEIGHT));
-    let _ = win.set_position(PhysicalPosition::new(area.position.x + (area.size.width as i32 - width) / 2, area.position.y));
+    let _ = win.set_size(LogicalSize::new(f64::from(area.size.width) / monitor.scale_factor(), HEIGHT));
+    let _ = win.set_position(PhysicalPosition::new(area.position.x, area.position.y));
 }
 
 // Clics traversants : Tauri ne transmet plus la souris à une fenêtre qui l'ignore. On suit donc le curseur ici
@@ -270,6 +269,32 @@ async fn get_media_art(app: AppHandle) -> Option<String> {
 async fn media_control(app: AppHandle, action: String) -> bool {
     ["play", "next", "prev"].contains(&action.as_str())
         && run(app, move |_, bar| bar.helper.ask(&format!("media-{action}")) == "ok").await
+}
+
+// ---------- Notifications des applis ----------
+// Affichées un instant dans la pilule. Texte venu d'autres applis : vérifié et coupé ici, affiché en textContent.
+fn parse_notifications(line: &str) -> Vec<Value> {
+    let Ok(Value::Array(list)) = serde_json::from_str::<Value>(line) else { return Vec::new() };
+    let text = |v: &Value, max: usize| -> String { v.as_str().unwrap_or("").chars().filter(|c| !c.is_control()).take(max).collect() };
+    list.iter()
+        .filter_map(|n| {
+            let id = n["id"].as_u64().filter(|id| *id <= u64::from(u32::MAX))?;
+            let title = text(&n["title"], 120);
+            (!title.is_empty()).then(|| {
+                json!({ "id": id, "app": text(&n["app"], 60), "title": title, "body": text(&n["body"], 200), "time": n["time"].as_f64().unwrap_or(0.0) })
+            })
+        })
+        .collect()
+}
+
+#[tauri::command]
+async fn get_notifications(app: AppHandle) -> Vec<Value> {
+    run(app, |_, bar| parse_notifications(&bar.helper.ask("notifs"))).await
+}
+
+#[tauri::command]
+async fn get_notification_icon(app: AppHandle, id: u32) -> Option<String> {
+    run(app, move |_, bar| data_url("png", bar.helper.ask(&format!("notif-icon {id}")))).await
 }
 
 // ---------- Raccourcis d'applis ----------
@@ -733,7 +758,7 @@ fn main() {
             quit, set_hit_rects, get_backdrop, get_settings, save_settings, reset_settings, get_startup, set_startup,
             pick_target, get_audio, set_volume, set_mic_muted, get_media, get_media_art, media_control, get_shortcuts,
             launch, list_apps, get_app_icon, launch_app, pin_app, desktop_shortcut, reveal_app, calendar_texts,
-            get_calendars, add_calendar, import_calendar, remove_calendar
+            get_calendars, add_calendar, import_calendar, remove_calendar, get_notifications, get_notification_icon
         ])
         .build(tauri::generate_context!())
         .expect("Island n'a pas pu démarrer")
@@ -755,6 +780,16 @@ mod tests {
         assert_eq!((apps[0].name.as_str(), apps[0].id.as_str()), ("Ok", "a!b"));
         assert!(parse_apps("pas du json").is_empty());
         assert!(parse_apps(r#"{"name":"seul"}"#).is_empty());
+    }
+
+    #[test]
+    fn notifications_verifiees() {
+        let line = r#"[{"id":12,"app":"Discord","title":"Léa","body":"Salut\u0007 !","time":5},{"id":-1,"title":"x"},{"id":3,"title":""},"texte"]"#;
+        let list = parse_notifications(line);
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0]["body"], "Salut !");
+        assert_eq!(list[0]["app"], "Discord");
+        assert!(parse_notifications("pas du json").is_empty());
     }
 
     #[test]
