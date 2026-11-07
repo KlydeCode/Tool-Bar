@@ -76,19 +76,40 @@ fn place_window(win: &WebviewWindow) {
     let _ = win.set_position(PhysicalPosition::new(area.position.x, area.position.y));
 }
 
+#[link(name = "user32")]
+extern "system" {
+    fn GetAsyncKeyState(key: i32) -> i16;
+}
+const VK_CONTROL: i32 = 0x11;
+
+// Touche Ctrl enfoncée en ce moment (n'importe quelle appli au premier plan).
+fn ctrl_down() -> bool {
+    // SAFETY : fonction Windows sans pointeur, qui lit seulement l'état d'une touche.
+    unsafe { GetAsyncKeyState(VK_CONTROL) < 0 }
+}
+
 // Clics traversants : Tauri ne transmet plus la souris à une fenêtre qui l'ignore. On suit donc le curseur ici
 // et la fenêtre ne capte la souris que dans les zones envoyées par l'interface (pilule, panneau, agenda).
+// Ctrl enfoncé, souris sur la barre : les clics la traversent (l'interface pâlit pour le montrer).
 fn follow_mouse(app: AppHandle) {
     let Some(win) = app.get_webview_window("main") else { return };
     let mut ignoring = true;
+    let mut passthrough = false;
     loop {
         std::thread::sleep(MOUSE_POLL);
         let (Ok(cursor), Ok(origin), Ok(scale)) = (win.cursor_position(), win.inner_position(), win.scale_factor()) else { continue };
         let x = (cursor.x - f64::from(origin.x)) / scale;
         let y = (cursor.y - f64::from(origin.y)) / scale;
-        let over = lock(&app.state::<Bar>().hit_rects)
+        let on_bar = lock(&app.state::<Bar>().hit_rects)
             .iter()
             .any(|[left, top, w, h]| x >= *left && x < left + w && y >= *top && y < top + h);
+        // Seulement souris sur la barre : un Ctrl+C dans une autre appli ne doit pas la faire pâlir.
+        let ctrl = on_bar && ctrl_down();
+        if ctrl != passthrough {
+            passthrough = ctrl;
+            let _ = win.emit("bar:passthrough", ctrl);
+        }
+        let over = on_bar && !ctrl;
         if over == ignoring {
             ignoring = !over;
             let _ = win.set_ignore_cursor_events(ignoring);

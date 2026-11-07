@@ -66,11 +66,11 @@ pill.addEventListener('click', () => setOpen(true));
 panel.addEventListener('mouseenter', () => clearTimeout(timer));
 agenda.addEventListener('mouseenter', () => clearTimeout(timer));
 agenda.addEventListener('mouseleave', () => {
-  if (!body.classList.contains('is-settings')) later(false, CLOSE_DELAY);
+  if (!body.classList.contains('is-settings') && !passthrough) later(false, CLOSE_DELAY);
 });
 // Dans les réglages, la souris peut sortir (fenêtre de choix de fichier…) sans tout refermer.
 panel.addEventListener('mouseleave', () => {
-  if (!body.classList.contains('is-settings') && !menuOpen) later(false, CLOSE_DELAY);
+  if (!body.classList.contains('is-settings') && !menuOpen && !passthrough) later(false, CLOSE_DELAY);
 });
 $('collapse').addEventListener('click', () => setOpen(false));
 document.addEventListener('keydown', (event) => {
@@ -83,6 +83,14 @@ document.addEventListener('keydown', (event) => {
 bar.onToggle(() => {
   if (body.classList.contains('is-spotlight')) closeSpotlight();
   else openSpotlight();
+});
+// Ctrl enfoncé : on clique à travers la barre, qui pâlit et reste ouverte. Une fois relâché,
+// elle se referme si la souris n'est pas revenue dessus (le survol annule la fermeture).
+let passthrough = false;
+bar.onPassthrough((on) => {
+  passthrough = on;
+  body.classList.toggle('is-passthrough', on);
+  if (!on && body.classList.contains('is-open') && !body.classList.contains('is-settings')) later(false, CLOSE_DELAY);
 });
 bar.onClose(() => {
   closeSpotlight();

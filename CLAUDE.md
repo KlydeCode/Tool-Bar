@@ -74,12 +74,14 @@ Fidélité à la maquette : c'est la référence. Une capture est fournie par l'
 - **JetBrains Mono** : petites étiquettes en majuscules (10,5 px, interlettrage 0.14em : EN COURS, RACCOURCIS, VOLUME), chiffres, date
 
 **Formes**
-- Panneau : 680 px de large, padding 18 px, coins 32 px. Pilule : 32 px de haut (40 px avant la 2.0).
+- Panneau : 520 px de large (`--panel-w`), padding 12 px, coins 24 px, tuiles de 64 px, horloge 44 px
+  (2.0 : réduit à la demande de l'utilisateur, avant 680 / 18 / 32 / 88 / 60 px). Pilule : 32 px de haut.
+- **Ctrl** enfoncé avec la souris sur la barre : les clics la traversent (la barre pâlit), elle reste ouverte.
 - Depuis la 2.0 : pilule, panneau et agenda collés au haut de l'écran (seuls les coins du bas sont arrondis) ; la fenêtre couvre
   toute la zone de travail (transparente, clics traversants). Ligne vers les bords de l'écran essayée puis retirée (demande de l'utilisateur).
 - Haut du panneau : carte musique à gauche, carte horloge (190 px) à droite. Puis 6 tuiles de 88 px (coins 20 px) numérotées 01 à 06,
   puis la ligne volume + micro.
-- Boutons d'au moins 44 × 44 px. Icônes : traits simples (style Lucide).
+- Boutons d'au moins 44 × 44 px dans les réglages ; dans le panneau réduit (2.0), 32 à 38 px. Icônes : traits simples (style Lucide).
 
 **Animations**
 - Ouverture : la pilule s'étire jusqu'au panneau (un seul fond découpé par `clip-path`, ~0,65 s, sans rebond) ; le contenu apparaît ensuite,

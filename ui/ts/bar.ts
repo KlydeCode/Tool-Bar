@@ -7,7 +7,7 @@ declare global {
   interface Window {
     __TAURI__: {
       core: { invoke<T>(command: string, args?: Record<string, unknown>): Promise<T> };
-      event: { listen(event: string, handler: () => void): Promise<unknown> };
+      event: { listen<T>(event: string, handler: (event: { payload: T }) => void): Promise<unknown> };
     };
   }
 }
@@ -87,4 +87,6 @@ export const bar = {
   // Signaux sans données venant de Rust : raccourci clavier global, perte du focus.
   onToggle: (callback: () => void) => listen('bar:toggle', callback),
   onClose: (callback: () => void) => listen('bar:close', callback),
+  // Ctrl enfoncé (true) ou relâché (false) : les clics traversent la barre.
+  onPassthrough: (callback: (on: boolean) => void) => listen<boolean>('bar:passthrough', (event) => callback(event.payload === true)),
 };
