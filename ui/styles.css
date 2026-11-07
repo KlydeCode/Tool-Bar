@@ -148,29 +148,6 @@ button:focus-visible, input:focus-visible {
   transition-duration: 0.3s;
 }
 
-/* ---------- Ligne du haut de l'écran ----------
-   Fine ligne sur toute la largeur, sous la pilule : elle part de la pilule vers les bords au démarrage
-   et à chaque notification. Elle reste visible quand la barre est masquée (repère pour la faire revenir). */
-.edge {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  pointer-events: none;
-  background: color-mix(in srgb, var(--c2) 55%, transparent);
-  transition: background 0.3s, box-shadow 0.3s;
-}
-.edge.is-spreading { animation: edge-spread 0.9s var(--ease-out); }
-.has-notif .edge {
-  background: var(--c2);
-  box-shadow: 0 0 8px var(--c2);
-}
-@keyframes edge-spread {
-  from { transform: scaleX(0); opacity: 0.3; }
-  to { transform: scaleX(1); opacity: 1; }
-}
-
 /* ---------- Pilule ↔ panneau ----------
    Un seul fond : le panneau. Replié, il est découpé (clip-path) à la taille de la pilule ;
    à l'ouverture, la découpe s'étire jusqu'au panneau entier. La pilule ne porte que son texte. */
@@ -763,9 +740,37 @@ input[type="range"]::-webkit-slider-thumb {
 .search input::placeholder { color: var(--text-2); }
 .search input::-webkit-search-cancel-button { display: none; }
 
-#results { display: none; }
-.is-searching #tiles { display: none; }
-.is-searching #results { display: grid; }
+/* ---------- Recherche au milieu de l'écran ---------- */
+.section-tools { display: flex; align-items: center; gap: 6px; }
+.search-btn { margin: -14px -8px -14px 0; } /* 44 px cliquables sans grandir la ligne */
+.search-btn:hover { color: var(--c2); }
+.spotlight {
+  position: absolute;
+  top: 28vh;
+  left: 50%;
+  width: 680px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-radius: 28px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  translate: -50% 12px;
+  scale: 0.97;
+  transition: opacity 0.18s, translate 0.25s var(--ease-out), scale 0.25s var(--ease-out);
+}
+.is-spotlight .spotlight {
+  opacity: 1;
+  pointer-events: auto;
+  translate: -50% 0;
+  scale: 1;
+}
+.spotlight .search { height: 52px; font-size: 16px; }
+#results:not(:has(*)):not(.is-searched) { display: none; }
 #results:empty::after {
   content: "Aucune appli trouvée";
   grid-column: 1 / -1;
@@ -807,7 +812,6 @@ input[type="range"]::-webkit-slider-thumb {
 /* ---------- Réglages ---------- */
 .settings { display: none; }
 .is-settings .top,
-.is-settings .search,
 .is-settings .section-head,
 .is-settings .tiles,
 .is-settings .volume { display: none; }

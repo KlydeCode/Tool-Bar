@@ -41,7 +41,6 @@ function setOpen(open: boolean) {
       panel.classList.remove('has-backdrop');
       agenda.classList.remove('has-backdrop');
       closeSettings();
-      clearSearch();
     }, 600);
   }
 }
@@ -77,15 +76,18 @@ $('collapse').addEventListener('click', () => setOpen(false));
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape' || recordingShortcut) return;
   if (menu.isConnected) closeMenu();
+  else if (body.classList.contains('is-spotlight')) closeSpotlight();
   else setOpen(false);
 });
-// Alt+Maj+Espace (raccourci global, Rust) et perte du focus.
+// Alt+Maj+Espace (raccourci global, Rust) : ouvre ou ferme la recherche. Perte du focus : tout se ferme.
 bar.onToggle(() => {
-  const open = !body.classList.contains('is-open');
-  setOpen(open);
-  if (open && !body.classList.contains('is-settings')) searchInput.focus();
+  if (body.classList.contains('is-spotlight')) closeSpotlight();
+  else openSpotlight();
 });
-bar.onClose(() => setOpen(false));
+bar.onClose(() => {
+  closeSpotlight();
+  setOpen(false);
+});
 
 // ---------- Auto-masquage (option de la config) ----------
 // La barre glisse hors de l'écran ; elle revient quand la souris touche le haut de l'écran
@@ -108,13 +110,13 @@ function scheduleHide(delay: number) {
   clearTimeout(hideTimer);
   hideTimer = setTimeout(() => {
     // Toujours utilisée (ouverte ou survolée) : on réessaie plus tard.
-    if (body.classList.contains('is-open') || hovered) scheduleHide(delay);
+    if (body.classList.contains('is-open') || body.classList.contains('is-spotlight') || hovered) scheduleHide(delay);
     else body.classList.add('is-hidden');
   }, delay);
 }
 
 document.addEventListener('mousemove', (event) => {
-  hovered = Boolean((event.target as Element).closest('.pill, .panel, .agenda'));
+  hovered = Boolean((event.target as Element).closest('.pill, .panel, .agenda, .spotlight'));
   if (autoHide && body.classList.contains('is-hidden') && event.clientY <= TOP_EDGE) {
     showBar();
     scheduleHide(PEEK_DELAY);
@@ -134,12 +136,14 @@ function sendHitRects() {
   if (body.classList.contains('is-hidden')) rects = [[(window.innerWidth - TOP_ZONE) / 2, 0, TOP_ZONE, TOP_EDGE + 1]];
   else if (!body.classList.contains('is-open')) rects = [rectOf(pill)];
   else rects = body.classList.contains('is-agenda') ? [rectOf(panel), rectOf(agenda)] : [rectOf(panel)];
+  if (body.classList.contains('is-spotlight')) rects.push(rectOf(spotlight));
   bar.setHitRects(rects);
 }
 
 new MutationObserver(sendHitRects).observe(body, { attributes: true, attributeFilter: ['class'] });
 new ResizeObserver(sendHitRects).observe(panel);
 new ResizeObserver(sendHitRects).observe(pill);
+new ResizeObserver(sendHitRects).observe($('spotlight'));
 // La barre qui revient (auto-masquage) glisse : zones remesurées à la fin du mouvement.
 document.querySelector('.bar')?.addEventListener('transitionend', sendHitRects);
 
@@ -271,18 +275,19 @@ async function refreshTiles() {
     });
     return tile;
   }));
-  if (!body.classList.contains('is-searching')) tileCount.textContent = String(shortcuts.length).padStart(2, '0');
+  tileCount.textContent = String(shortcuts.length).padStart(2, '0');
   if (!body.classList.contains('is-open')) syncPillWidth();
 }
 
 refreshTiles();
 
 // ---------- Recherche d'applis du PC ----------
-// On tape, les applis trouvées remplacent les tuiles. Entrée lance la sélection, flèches pour choisir,
-// Échap efface. L'épingle ajoute l'appli aux tuiles.
+// La loupe du panneau (ou Alt+Maj+Espace) ouvre la recherche au milieu de l'écran, et la barre se replie.
+// Les applis trouvées s'affichent dessous. Entrée lance la sélection, flèches pour choisir,
+// Échap efface puis ferme. L'épingle ajoute l'appli aux tuiles.
+const spotlight = $('spotlight');
 const searchInput = $<HTMLInputElement>('search');
 const resultsEl = $('results');
-const tilesLabel = $('tiles-label');
 const SEARCH_DELAY = 80; // ms : laisse finir la frappe avant de chercher
 let searchTimer: number | undefined;
 let menuOpen = false;
@@ -298,13 +303,29 @@ let searchId = 0;
 
 function clearSearch() {
   closeMenu();
+  clearTimeout(searchTimer);
+  searchId++; // une recherche en cours ne doit plus afficher ses résultats
   searchInput.value = '';
   results = [];
   resultsEl.replaceChildren();
-  body.classList.remove('is-searching');
-  tilesLabel.textContent = 'Raccourcis';
-  tileCount.textContent = String(tilesEl.children.length).padStart(2, '0');
+  resultsEl.classList.remove('is-searched');
 }
+
+function openSpotlight() {
+  setOpen(false);
+  showBar();
+  body.classList.add('is-spotlight');
+  searchInput.focus();
+}
+
+function closeSpotlight() {
+  if (!body.classList.contains('is-spotlight')) return;
+  body.classList.remove('is-spotlight');
+  clearSearch();
+  scheduleHide(HIDE_DELAY);
+}
+
+$('search-open').addEventListener('click', openSpotlight);
 
 function selectResult(index: number) {
   selected = index;
@@ -314,8 +335,7 @@ function selectResult(index: number) {
 function launchResult(index: number) {
   if (!results[index]) return;
   bar.launchApp(results[index].id);
-  clearSearch();
-  setOpen(false);
+  closeSpotlight();
 }
 
 // Clic droit sur un résultat : petit menu (ouvrir, raccourci dans la barre ou sur le Bureau, emplacement).
@@ -347,8 +367,7 @@ function openMenu(app: StartApp, x: number, y: number) {
     menuItem('Ouvrir', async () => {
       // Comme un clic sur le résultat : la barre se replie.
       bar.launchApp(app.id);
-      clearSearch();
-      setOpen(false);
+      closeSpotlight();
       return null;
     }),
     separator(),
@@ -364,10 +383,10 @@ function openMenu(app: StartApp, x: number, y: number) {
     menuItem("Ouvrir l'emplacement du fichier", async () => (
       (await bar.revealApp(app.id)) ? null : 'Emplacement introuvable.')),
   );
-  panel.append(menu);
+  spotlight.append(menu);
   menuOpen = true;
-  // Dans le panneau, sans déborder (il coupe ce qui dépasse).
-  const box = panel.getBoundingClientRect();
+  // Dans la recherche, sans en déborder (la souris ne serait plus captée en dehors).
+  const box = spotlight.getBoundingClientRect();
   const left = Math.min(x - box.left, box.width - menu.offsetWidth - 8);
   const top = Math.min(y - box.top, box.height - menu.offsetHeight - 8);
   menu.style.left = `${Math.max(8, left)}px`;
@@ -421,15 +440,13 @@ searchInput.addEventListener('input', () => {
   clearTimeout(searchTimer);
   const query = searchInput.value.trim();
   if (!query) return clearSearch();
-  body.classList.add('is-searching');
-  tilesLabel.textContent = 'Applis';
   searchTimer = setTimeout(async () => {
     const id = ++searchId;
     const apps = await bar.listApps();
     if (id !== searchId) return; // une frappe plus récente a déjà relancé la recherche
     results = searchApps(apps, query);
     renderResults();
-    tileCount.textContent = String(results.length).padStart(2, '0');
+    resultsEl.classList.add('is-searched');
   }, SEARCH_DELAY);
 });
 
@@ -1071,24 +1088,16 @@ refreshMedia();
 setInterval(refreshMedia, MEDIA_POLL);
 
 // ---------- Notifications des applis ----------
-// Une nouvelle notification (Discord, Outlook, Teams…) s'affiche quelques secondes dans la pilule,
-// et la ligne du haut repart de la pilule vers les bords. Les notifications déjà là au démarrage sont ignorées.
+// Une nouvelle notification (Discord, Outlook, Teams…) s'affiche quelques secondes dans la pilule.
+// Les notifications déjà là au démarrage sont ignorées.
 const NOTIF_POLL = 2000; // ms
 const NOTIF_SHOW = 6000; // ms
-const edge = $('edge');
 const notifIcon = $<HTMLImageElement>('notif-icon');
 const notifApp = $('notif-app');
 const notifText = $('notif-text');
 const notifIcons = new Map<string, string>(); // nom de l'appli → icône
 let seenNotifs: Set<number> | null = null;
 let notifTimer: number | undefined;
-
-// La ligne part de la pilule et s'étend jusqu'aux bords de l'écran.
-function spreadEdge() {
-  edge.classList.remove('is-spreading');
-  void edge.offsetWidth; // relance l'animation
-  edge.classList.add('is-spreading');
-}
 
 async function showNotification(notif: AppNotification) {
   const icon = notifIcons.get(notif.app) ?? await bar.getNotificationIcon(notif.id);
@@ -1099,7 +1108,6 @@ async function showNotification(notif: AppNotification) {
   notifText.textContent = notif.body ? `${notif.title} · ${notif.body}` : notif.title;
   body.classList.add('has-notif');
   showBar();
-  spreadEdge();
   syncPillWidth();
   clearTimeout(notifTimer);
   notifTimer = setTimeout(() => {
@@ -1116,7 +1124,6 @@ async function pollNotifications() {
   if (fresh.length) showNotification(fresh.reduce((a, b) => (b.time > a.time ? b : a)));
 }
 
-spreadEdge();
 pollNotifications();
 setInterval(pollNotifications, NOTIF_POLL);
 

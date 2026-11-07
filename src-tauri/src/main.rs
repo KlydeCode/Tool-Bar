@@ -24,9 +24,8 @@ use tauri_plugin_opener::OpenerExt;
 use helper::{arg, Helper};
 use launch::{resolve_shortcut, Target};
 
-// Toute la largeur de l'écran (la ligne du haut va jusqu'aux bords), en grande partie transparente :
-// les clics la traversent ; pilule, panneau et agenda sont dessinés dedans, au centre.
-const HEIGHT: f64 = 700.0; // jusqu'à 3 rangées de tuiles + la recherche
+// La fenêtre couvre tout l'écran (hors barre des tâches) et reste presque entièrement transparente :
+// les clics la traversent. Pilule, panneau et agenda sont dessinés en haut au centre, la recherche au milieu.
 const DEFAULTS: &str = include_str!("../../config.default.json");
 const BACKDROP_SCALE: f64 = 0.25; // l'image est floutée : une petite capture suffit
 const MOUSE_POLL: Duration = Duration::from_millis(25);
@@ -68,11 +67,12 @@ fn data_url(kind: &str, base64: String) -> Option<String> {
 }
 
 // ---------- Fenêtre ----------
-// Collée en haut de la zone de travail (hors barre des tâches) de l'écran principal, sur toute sa largeur.
+// Toute la zone de travail (hors barre des tâches) de l'écran principal.
 fn place_window(win: &WebviewWindow) {
     let Ok(Some(monitor)) = win.primary_monitor() else { return };
     let area = monitor.work_area();
-    let _ = win.set_size(LogicalSize::new(f64::from(area.size.width) / monitor.scale_factor(), HEIGHT));
+    let scale = monitor.scale_factor();
+    let _ = win.set_size(LogicalSize::new(f64::from(area.size.width) / scale, f64::from(area.size.height) / scale));
     let _ = win.set_position(PhysicalPosition::new(area.position.x, area.position.y));
 }
 

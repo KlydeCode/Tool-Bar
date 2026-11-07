@@ -75,8 +75,8 @@ Fidélité à la maquette : c'est la référence. Une capture est fournie par l'
 
 **Formes**
 - Panneau : 680 px de large, padding 18 px, coins 32 px. Pilule : 32 px de haut (40 px avant la 2.0).
-- Depuis la 2.0 : pilule, panneau et agenda collés au haut de l'écran (seuls les coins du bas sont arrondis) ; fenêtre sur toute
-  la largeur ; fine ligne en couleur 2 en haut de l'écran, qui part de la pilule vers les bords au démarrage et à chaque notification.
+- Depuis la 2.0 : pilule, panneau et agenda collés au haut de l'écran (seuls les coins du bas sont arrondis) ; la fenêtre couvre
+  toute la zone de travail (transparente, clics traversants). Ligne vers les bords de l'écran essayée puis retirée (demande de l'utilisateur).
 - Haut du panneau : carte musique à gauche, carte horloge (190 px) à droite. Puis 6 tuiles de 88 px (coins 20 px) numérotées 01 à 06,
   puis la ligne volume + micro.
 - Boutons d'au moins 44 × 44 px. Icônes : traits simples (style Lucide).
@@ -115,7 +115,8 @@ Ajouts demandés après la phase 9 (avant l'installateur) :
 - **Tuiles libres** : jusqu'à 18 (3 rangées de 6), déplaçables (glisser-déposer dans le panneau, flèches dans les réglages),
   ajout / suppression ; cible = appli (.exe, .lnk), fichier, dossier, site (http/https) ou appli trouvée par la recherche.
   Dossiers : simple pictogramme de dossier.
-- **Recherche d'applis du PC** dans le panneau (liste du menu Démarrer via `Get-StartApps`, icônes via Windows) ;
+- **Recherche d'applis du PC** (2.0 : une loupe dans le panneau ouvre la recherche au milieu de l'écran, la barre se replie,
+  résultats dessous ; Alt+Maj+Espace ouvre directement cette recherche) (liste du menu Démarrer via `Get-StartApps`, icônes via Windows) ;
   Entrée lance, flèches pour choisir, épingle pour ajouter en tuile. Alt+Maj+Espace ouvre la barre avec le curseur dans la recherche.
   Clic droit sur un résultat : petit menu dans le panneau (HTML depuis la 2.0) (ouvrir, créer un raccourci dans la barre ou sur le Bureau, ouvrir l'emplacement du fichier).
 - **Thèmes** (`ui/ts/themes.ts`) : 5 thèmes de 4 couleurs (fond, cartes, couleur 1, couleur 2) tirés des palettes Lospec
