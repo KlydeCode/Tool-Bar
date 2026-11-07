@@ -2,3 +2,7 @@ node_modules/
 out/
 dist/
 Thumbs.db
+ui/js/
+ui/vendor/ical.js
+src-tauri/target/
+src-tauri/gen/

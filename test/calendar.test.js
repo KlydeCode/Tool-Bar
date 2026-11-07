@@ -1,6 +1,6 @@
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const { calendarUrl, eventsBetween, weekStart } = require('../lib/calendar');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { eventsBetween, weekStart } from '../ui/js/calendar.js';
 
 const ics = (body) => `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//test//FR\n${body}\nEND:VCALENDAR\n`;
 const range = [new Date(Date.UTC(2026, 9, 12)), new Date(Date.UTC(2026, 9, 26))];
@@ -103,12 +103,4 @@ test('début de semaine : lundi à minuit', () => {
   assert.equal(weekStart(new Date(2026, 9, 15, 18, 30)).getTime(), new Date(2026, 9, 12).getTime());
   assert.equal(weekStart(new Date(2026, 9, 18, 23)).getTime(), new Date(2026, 9, 12).getTime());
   assert.equal(weekStart(new Date(2026, 9, 12)).getTime(), new Date(2026, 9, 12).getTime());
-});
-
-test('lien d\'agenda : https (webcal converti), sinon refusé', () => {
-  assert.equal(calendarUrl('  webcal://p01-caldav.icloud.com/published/2/abc  '), 'https://p01-caldav.icloud.com/published/2/abc');
-  assert.equal(calendarUrl('https://calendar.google.com/calendar/ical/x/basic.ics'), 'https://calendar.google.com/calendar/ical/x/basic.ics');
-  for (const bad of ['http://exemple.fr/a.ics', 'file:///C:/a.ics', 'javascript:alert(1)', 'pas un lien', '', 42, `https://a.fr/${'x'.repeat(3000)}`]) {
-    assert.equal(calendarUrl(bad), null, String(bad).slice(0, 30));
-  }
 });

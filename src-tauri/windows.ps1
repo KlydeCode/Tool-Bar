@@ -1,5 +1,6 @@
-# Actions Windows pour la barre (lancé une fois par main.js, reste ouvert).
-# Une demande par ligne sur l'entrée standard, une réponse par ligne (ligne vide = erreur) :
+# Actions Windows pour la barre (lancé une fois par Island, src-tauri/src/helper.rs, reste ouvert).
+# Une demande par ligne sur l'entrée standard, précédée de son numéro ; la réponse reprend ce numéro :
+#   « 7 volume » -> « 7 0.65 » (réponse vide = erreur). Demandes possibles :
 #   capture x y largeur hauteur échelle  -> image réduite en JPEG base64
 #   volume                               -> volume du haut-parleur, de 0 à 1
 #   volume-set 0.65                      -> « ok »
@@ -11,10 +12,14 @@
 #   apps                                 -> applis du menu Démarrer en JSON [{ name, id }] (liste gardée ici)
 #   app-icon 12                          -> icône de l'appli n° 12 de cette liste, en PNG base64
 #   app-path 12                          -> fichier de l'appli n° 12 (.exe, ou dossier pour le Microsoft Store)
-# Les arguments sont toujours des nombres, vérifiés ici aussi.
+#   file-icon <chemin>                   -> icône d'un fichier (32 px) en PNG base64
+#   package-dir <nom>                    -> dossier d'installation d'une appli du Microsoft Store
+#   lnk <fichier> <cible> <arguments> <icône> -> « ok » : raccourci .lnk créé
+# Les arguments sont des nombres, ou des textes encodés en base64 (UTF-8, « - » = vide) déjà vérifiés
+# par Island : ils ne sont jamais exécutés comme commande, seulement lus comme données.
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
-# Titres avec accents ou emojis : la sortie doit être en UTF-8 pour main.js.
+# Titres avec accents ou emojis : la sortie doit être en UTF-8 (les demandes, elles, sont en ASCII).
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false
 
 # Volume et micro : API Core Audio de Windows (IAudioEndpointVolume), sans dépendance.
@@ -181,6 +186,31 @@ function Get-Numbers($parts, $count) {
   $parts | ForEach-Object { [double]::Parse($_, $invariant) }
 }
 
+function Get-Text($parts, $count) {
+  if ($parts.Count -ne $count) { throw 'nombre d''arguments' }
+  $parts | ForEach-Object { if ($_ -eq '-') { '' } else { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($_)) } }
+}
+
+function Get-FileIcon($path) {
+  if (-not (Test-Path -LiteralPath $path)) { return '' }
+  $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($path)
+  $bitmap = $icon.ToBitmap()
+  $ms = New-Object System.IO.MemoryStream
+  $bitmap.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+  $bitmap.Dispose()
+  $icon.Dispose()
+  [Convert]::ToBase64String($ms.ToArray())
+}
+
+function New-Lnk($file, $target, $arguments, $iconFile) {
+  $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($file)
+  $shortcut.TargetPath = $target
+  $shortcut.Arguments = $arguments
+  if ($iconFile) { $shortcut.IconLocation = "$iconFile,0" }
+  $shortcut.Save()
+  'ok'
+}
+
 function Get-Capture($x, $y, $w, $h, $k) {
   $full = New-Object System.Drawing.Bitmap ([int]$w), ([int]$h)
   $g = [System.Drawing.Graphics]::FromImage($full)
@@ -285,7 +315,7 @@ function Invoke-MediaControl($action) {
 }
 
 # Applis du PC : la liste du menu Démarrer (applis classiques et du Microsoft Store).
-# main.js désigne ensuite une appli par son numéro dans cette liste, jamais par un texte.
+# Island désigne ensuite une appli par son numéro dans cette liste, jamais par un texte.
 $appList = @()
 
 function Get-Apps {
@@ -312,8 +342,9 @@ function Get-AppIcon($index) {
 }
 
 while ($null -ne ($line = [Console]::In.ReadLine())) {
+  $id, $command, $rest = $line -split ' '
+  if ($id -notmatch '^\d+$') { continue }
   try {
-    $command, $rest = $line -split ' '
     $parts = @($rest | Where-Object { $_ -ne $null })
     $answer = switch ($command) {
       'capture' {
@@ -330,6 +361,12 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
       'apps' { Get-Apps }
       'app-icon' { Get-AppIcon (Get-Numbers $parts 1) }
       'app-path' { Get-AppPath (Get-Numbers $parts 1) }
+      'file-icon' { Get-FileIcon (Get-Text $parts 1) }
+      'package-dir' { (Get-AppxPackage -Name (Get-Text $parts 1) | Select-Object -First 1).InstallLocation }
+      'lnk' {
+        $file, $target, $arguments, $iconFile = Get-Text $parts 4
+        New-Lnk $file $target $arguments $iconFile
+      }
       'media' { Get-Media }
       'media-art' { Get-MediaArt }
       'media-play' { Invoke-MediaControl 'play' }
@@ -342,8 +379,8 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
       }
       default { '' }
     }
-    [Console]::Out.WriteLine([string]$answer)
+    [Console]::Out.WriteLine("$id $answer")
   } catch {
-    [Console]::Out.WriteLine('')
+    [Console]::Out.WriteLine("$id ")
   }
 }

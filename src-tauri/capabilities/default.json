@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "La fenêtre de la barre : écouter les signaux de Rust. Les commandes de l'appli sont vérifiées dans main.rs.",
+  "windows": ["main"],
+  "permissions": ["core:event:default"]
+}

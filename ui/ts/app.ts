@@ -1,14 +1,27 @@
+import { bar, type Rect, type SaveResult, type Settings, type Tile, type TileInfo } from './bar.js';
+import { eventsBetween, weekStart, type CalendarEvent } from './calendar.js';
+import { currentPosition, formatTime, type Media } from './media.js';
+import { searchApps, type StartApp } from './search.js';
+import { FONTS, THEMES } from './themes.js';
+
+// Élément de index.html (il existe toujours : sinon c'est une erreur du code, qu'on veut voir tout de suite).
+function $<T extends HTMLElement = HTMLElement>(id: string): T {
+  const el = document.getElementById(id);
+  if (!el) throw new Error(`#${id} absent de index.html`);
+  return el as T;
+}
+
 const body = document.body;
-const pill = document.getElementById('pill');
-const panel = document.getElementById('panel');
-const agenda = document.getElementById('agenda');
+const pill = $<HTMLButtonElement>('pill');
+const panel = $('panel');
+const agenda = $('agenda');
 
 // ---------- Pilule ↔ panneau ----------
 const OPEN_DELAY = 120; // évite d'ouvrir quand la souris ne fait que passer
 const CLOSE_DELAY = 400; // laisse le temps de revenir sur le panneau
-let timer = null;
+let timer: number | undefined;
 
-function setOpen(open) {
+function setOpen(open: boolean) {
   clearTimeout(timer);
   if (open) showBar();
   else scheduleHide(HIDE_DELAY);
@@ -39,7 +52,7 @@ function syncPillWidth() {
 }
 document.fonts.ready.then(syncPillWidth);
 
-function later(open, delay) {
+function later(open: boolean, delay: number) {
   clearTimeout(timer);
   timer = setTimeout(() => setOpen(open), delay);
 }
@@ -60,17 +73,19 @@ agenda.addEventListener('mouseleave', () => {
 panel.addEventListener('mouseleave', () => {
   if (!body.classList.contains('is-settings') && !menuOpen) later(false, CLOSE_DELAY);
 });
-document.getElementById('collapse').addEventListener('click', () => setOpen(false));
+$('collapse').addEventListener('click', () => setOpen(false));
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && !recordingShortcut) setOpen(false);
+  if (event.key !== 'Escape' || recordingShortcut) return;
+  if (menu.isConnected) closeMenu();
+  else setOpen(false);
 });
-// Alt+Maj+Espace (raccourci global, main.js) et perte du focus.
-window.bar.onToggle(() => {
+// Alt+Maj+Espace (raccourci global, Rust) et perte du focus.
+bar.onToggle(() => {
   const open = !body.classList.contains('is-open');
   setOpen(open);
   if (open && !body.classList.contains('is-settings')) searchInput.focus();
 });
-window.bar.onClose(() => setOpen(false));
+bar.onClose(() => setOpen(false));
 
 // ---------- Auto-masquage (option de la config) ----------
 // La barre glisse hors de l'écran ; elle revient quand la souris touche le haut de l'écran
@@ -79,46 +94,59 @@ const HIDE_DELAY = 800; // après la fermeture ou le départ de la souris
 const PEEK_DELAY = 1500; // revenue sans être survolée : repart après ce délai
 const TOP_EDGE = 2; // pixels en haut de l'écran qui font revenir la barre
 let autoHide = false;
-let hideTimer = null;
+let hideTimer: number | undefined;
+let hovered = false; // souris sur la pilule, le panneau ou l'agenda
 
 function showBar() {
   clearTimeout(hideTimer);
   body.classList.remove('is-hidden');
 }
 
-function scheduleHide(delay) {
+function scheduleHide(delay: number) {
   if (!autoHide) return;
   clearTimeout(hideTimer);
   hideTimer = setTimeout(() => {
     // Toujours utilisée (ouverte ou survolée) : on réessaie plus tard.
-    if (body.classList.contains('is-open') || interactive) scheduleHide(delay);
+    if (body.classList.contains('is-open') || hovered) scheduleHide(delay);
     else body.classList.add('is-hidden');
   }, delay);
 }
 
 document.addEventListener('mousemove', (event) => {
+  hovered = Boolean((event.target as Element).closest('.pill, .panel, .agenda'));
   if (autoHide && body.classList.contains('is-hidden') && event.clientY <= TOP_EDGE) {
     showBar();
     scheduleHide(PEEK_DELAY);
   }
 });
+document.addEventListener('mouseleave', () => { hovered = false; });
 
-// Clics traversants : la fenêtre ne capte la souris que sur la pilule ou le panneau visibles.
-// Les mouvements de souris continuent d'arriver (option « forward » côté main.js).
-let interactive = false;
-document.addEventListener('mousemove', (event) => {
-  const over = Boolean(event.target.closest('.pill, .panel, .agenda'));
-  if (over !== interactive) {
-    interactive = over;
-    window.bar.setInteractive(over);
-  }
-});
+// Clics traversants : Rust suit la souris et ne la capte que dans ces zones
+// (pilule, ou panneau et agenda ouverts ; barre masquée : le bord haut de l'écran).
+function rectOf(el: Element): Rect {
+  const r = el.getBoundingClientRect();
+  return [r.x, r.y, r.width, r.height];
+}
+
+function sendHitRects() {
+  let rects: Rect[];
+  if (body.classList.contains('is-hidden')) rects = [[0, 0, window.innerWidth, TOP_EDGE + 1]];
+  else if (!body.classList.contains('is-open')) rects = [rectOf(pill)];
+  else rects = body.classList.contains('is-agenda') ? [rectOf(panel), rectOf(agenda)] : [rectOf(panel)];
+  bar.setHitRects(rects);
+}
+
+new MutationObserver(sendHitRects).observe(body, { attributes: true, attributeFilter: ['class'] });
+new ResizeObserver(sendHitRects).observe(panel);
+new ResizeObserver(sendHitRects).observe(pill);
+// La barre qui revient (auto-masquage) glisse : zones remesurées à la fin du mouvement.
+document.querySelector('.bar')?.addEventListener('transitionend', sendHitRects);
 
 // Flou derrière le panneau : capture de l'écran prise juste avant l'ouverture (barre fermée),
 // floutée une fois dans un canvas (le flou CSS « filter » n'est pas appliqué à l'écran
 // dans une fenêtre transparente sous Windows).
-const backdrop = document.getElementById('backdrop');
-const agendaBackdrop = document.getElementById('agenda-backdrop');
+const backdrop = $<HTMLCanvasElement>('backdrop');
+const agendaBackdrop = $<HTMLCanvasElement>('agenda-backdrop');
 for (const canvas of [backdrop, agendaBackdrop]) {
   canvas.width = Math.round(window.innerWidth / 4);
   canvas.height = Math.round(window.innerHeight / 4);
@@ -126,17 +154,19 @@ for (const canvas of [backdrop, agendaBackdrop]) {
 const BLUR = 7; // en pixels du canvas, qui fait 1/4 de la fenêtre (agrandi en CSS)
 let backdropPending = false;
 
-async function drawBackdrop(url) {
+async function drawBackdrop(url: string) {
   const img = new Image();
   img.src = url;
   await img.decode();
   const ctx = backdrop.getContext('2d');
+  const agendaCtx = agendaBackdrop.getContext('2d');
+  if (!ctx || !agendaCtx) return;
   ctx.clearRect(0, 0, backdrop.width, backdrop.height);
   ctx.filter = `blur(${BLUR}px) saturate(1.3)`;
   // Dessinée un peu plus grande que le canvas pour que le flou ne s'éclaircisse pas sur les bords.
   const m = BLUR * 1.5;
   ctx.drawImage(img, -m, -m, backdrop.width + 2 * m, backdrop.height + 2 * m);
-  agendaBackdrop.getContext('2d').drawImage(backdrop, 0, 0);
+  agendaCtx.drawImage(backdrop, 0, 0);
   panel.classList.add('has-backdrop');
   agenda.classList.add('has-backdrop');
 }
@@ -144,18 +174,18 @@ async function drawBackdrop(url) {
 function refreshBackdrop() {
   if (backdropPending || body.classList.contains('is-open')) return;
   backdropPending = true;
-  window.bar.getBackdrop()
-    .then((url) => url && drawBackdrop(url))
+  bar.getBackdrop()
+    .then((url) => (url ? drawBackdrop(url) : undefined))
     .catch((error) => console.error('Flou du fond impossible :', error))
     .finally(() => { backdropPending = false; });
 }
 
 // ---------- Raccourcis d'applis ----------
-// Tuiles construites depuis la config (main.js) : nom, vraie icône des applis, sinon un pictogramme.
+// Tuiles construites depuis la config (Rust) : nom, vraie icône des applis, sinon un pictogramme.
 // On les déplace par glisser-déposer ; le nouvel ordre est enregistré.
-const tilesEl = document.getElementById('tiles');
-const tileCount = document.getElementById('tile-count');
-const SYMBOLS = {
+const tilesEl = $('tiles');
+const tileCount = $('tile-count');
+const SYMBOLS: Record<string, string> = {
   app: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/>',
   file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
   folder: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
@@ -169,7 +199,7 @@ const SYMBOLS = {
 };
 
 // Pictogramme fixe (jamais du texte de la config dans innerHTML).
-function symbol(name) {
+function symbol(name: string): SVGSVGElement {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('class', 'icon');
   svg.setAttribute('viewBox', '0 0 24 24');
@@ -178,7 +208,7 @@ function symbol(name) {
   return svg;
 }
 
-function iconImage(src) {
+function iconImage(src: string): HTMLImageElement {
   const img = document.createElement('img');
   img.className = 'icon';
   img.src = src;
@@ -186,7 +216,7 @@ function iconImage(src) {
   return img;
 }
 
-function makeTile(number, name, icon) {
+function makeTile(number: number, name: string, icon: Element): HTMLButtonElement {
   const tile = document.createElement('button');
   tile.className = 'tile';
   tile.title = name; // nom complet au survol, s'il est coupé (…)
@@ -200,9 +230,9 @@ function makeTile(number, name, icon) {
   return tile;
 }
 
-let dragFrom = null;
+let dragFrom: number | null = null;
 
-function moveTile(from, to) {
+function moveTile(from: number, to: number) {
   if (from === to || !settings) return;
   const [tile] = settings.shortcuts.splice(from, 1);
   settings.shortcuts.splice(to, 0, tile);
@@ -210,17 +240,17 @@ function moveTile(from, to) {
 }
 
 async function refreshTiles() {
-  const shortcuts = await window.bar.getShortcuts();
-  tilesEl.replaceChildren(...shortcuts.map((shortcut, index) => {
+  const shortcuts = await bar.getShortcuts();
+  tilesEl.replaceChildren(...shortcuts.map((shortcut: TileInfo, index) => {
     const tile = makeTile(index + 1, shortcut.name, shortcut.icon ? iconImage(shortcut.icon) : symbol(shortcut.type));
     tile.draggable = true;
     tile.addEventListener('click', async () => {
       if (shortcut.type === 'settings') openSettings();
-      else if (await window.bar.launch(index)) setOpen(false);
+      else if (await bar.launch(index)) setOpen(false);
     });
     tile.addEventListener('dragstart', (event) => {
       dragFrom = index;
-      event.dataTransfer.effectAllowed = 'move';
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
       tile.classList.add('is-dragging');
     });
     tile.addEventListener('dragend', () => {
@@ -249,23 +279,24 @@ refreshTiles();
 // ---------- Recherche d'applis du PC ----------
 // On tape, les applis trouvées remplacent les tuiles. Entrée lance la sélection, flèches pour choisir,
 // Échap efface. L'épingle ajoute l'appli aux tuiles.
-const searchInput = document.getElementById('search');
-const resultsEl = document.getElementById('results');
-const tilesLabel = document.getElementById('tiles-label');
+const searchInput = $<HTMLInputElement>('search');
+const resultsEl = $('results');
+const tilesLabel = $('tiles-label');
 const SEARCH_DELAY = 80; // ms : laisse finir la frappe avant de chercher
-let searchTimer = null;
+let searchTimer: number | undefined;
 let menuOpen = false;
 
 // Petit message dans la barre de recherche, puis retour au texte d'aide.
-function flashSearch(text) {
+function flashSearch(text: string) {
   searchInput.placeholder = text;
   setTimeout(() => { searchInput.placeholder = 'Rechercher une appli…'; }, 2500);
 }
-let results = [];
+let results: StartApp[] = [];
 let selected = 0;
 let searchId = 0;
 
 function clearSearch() {
+  closeMenu();
   searchInput.value = '';
   results = [];
   resultsEl.replaceChildren();
@@ -274,41 +305,91 @@ function clearSearch() {
   tileCount.textContent = String(tilesEl.children.length).padStart(2, '0');
 }
 
-function selectResult(index) {
+function selectResult(index: number) {
   selected = index;
-  [...resultsEl.children].forEach((item, i) => item.firstChild.classList.toggle('is-selected', i === index));
+  [...resultsEl.children].forEach((item, i) => item.firstElementChild?.classList.toggle('is-selected', i === index));
 }
 
-function launchResult(index) {
+function launchResult(index: number) {
   if (!results[index]) return;
-  window.bar.launchApp(results[index].id);
+  bar.launchApp(results[index].id);
   clearSearch();
   setOpen(false);
 }
 
+// Clic droit sur un résultat : petit menu (ouvrir, raccourci dans la barre ou sur le Bureau, emplacement).
+const menu = document.createElement('div');
+menu.className = 'menu';
+menu.setAttribute('role', 'menu');
+
+function closeMenu() {
+  menu.remove();
+  menuOpen = false;
+}
+
+function menuItem(label: string, action: () => Promise<string | null>): HTMLButtonElement {
+  const item = document.createElement('button');
+  item.className = 'menu-item';
+  item.setAttribute('role', 'menuitem');
+  item.textContent = label;
+  item.addEventListener('click', async () => {
+    closeMenu();
+    const message = await action();
+    if (message) flashSearch(message);
+  });
+  return item;
+}
+
+function openMenu(app: StartApp, x: number, y: number) {
+  const separator = () => Object.assign(document.createElement('hr'), { className: 'menu-sep' });
+  menu.replaceChildren(
+    menuItem('Ouvrir', async () => {
+      // Comme un clic sur le résultat : la barre se replie.
+      bar.launchApp(app.id);
+      clearSearch();
+      setOpen(false);
+      return null;
+    }),
+    separator(),
+    menuItem('Créer un raccourci dans la barre', async () => {
+      const answer = await bar.pinApp(app.id);
+      settings = answer.settings;
+      if (answer.ok) refreshTiles();
+      return answer.ok ? 'Raccourci créé dans la barre.' : answer.error ?? '';
+    }),
+    menuItem('Créer un raccourci sur le Bureau', async () => (
+      (await bar.desktopShortcut(app.id)) ? 'Raccourci créé sur le Bureau.' : 'Raccourci impossible à créer.')),
+    separator(),
+    menuItem("Ouvrir l'emplacement du fichier", async () => (
+      (await bar.revealApp(app.id)) ? null : 'Emplacement introuvable.')),
+  );
+  panel.append(menu);
+  menuOpen = true;
+  // Dans le panneau, sans déborder (il coupe ce qui dépasse).
+  const box = panel.getBoundingClientRect();
+  const left = Math.min(x - box.left, box.width - menu.offsetWidth - 8);
+  const top = Math.min(y - box.top, box.height - menu.offsetHeight - 8);
+  menu.style.left = `${Math.max(8, left)}px`;
+  menu.style.top = `${Math.max(8, top)}px`;
+  menu.querySelector('button')?.focus();
+}
+
+document.addEventListener('pointerdown', (event) => {
+  if (menu.isConnected && !menu.contains(event.target as Node)) closeMenu();
+});
+
 function renderResults() {
+  closeMenu();
   resultsEl.replaceChildren(...results.map((result, i) => {
     const icon = symbol('app');
     const tile = makeTile(i + 1, result.name, icon);
     tile.addEventListener('click', () => launchResult(i));
-    tile.addEventListener('contextmenu', async (event) => {
+    tile.addEventListener('contextmenu', (event) => {
       event.preventDefault();
       selectResult(i);
-      menuOpen = true; // la souris va sur le menu : le panneau ne doit pas se refermer
-      const answer = await window.bar.appMenu(result.id);
-      menuOpen = false;
-      if (!answer) return;
-      if (answer.opened) {
-        // Comme un clic sur le résultat : la barre se replie.
-        clearSearch();
-        setOpen(false);
-        return;
-      }
-      settings = answer.settings;
-      if (answer.ok && !answer.desktop) refreshTiles();
-      flashSearch(answer.ok ? (answer.desktop ? 'Raccourci créé sur le Bureau.' : 'Raccourci créé dans la barre.') : answer.error);
+      openMenu(result, event.clientX, event.clientY);
     });
-    window.bar.getAppIcon(result.id).then((src) => {
+    bar.getAppIcon(result.id).then((src) => {
       if (src) icon.replaceWith(iconImage(src));
     });
     const pin = document.createElement('button');
@@ -317,10 +398,10 @@ function renderResults() {
     pin.setAttribute('aria-label', `Ajouter ${result.name} aux raccourcis`);
     pin.append(symbol('pin'));
     pin.addEventListener('click', async () => {
-      const answer = await window.bar.pinApp(result.id);
+      const answer = await bar.pinApp(result.id);
       settings = answer.settings;
       if (!answer.ok) {
-        pin.title = answer.error;
+        pin.title = answer.error ?? '';
         return;
       }
       pin.classList.add('is-done');
@@ -343,9 +424,9 @@ searchInput.addEventListener('input', () => {
   tilesLabel.textContent = 'Applis';
   searchTimer = setTimeout(async () => {
     const id = ++searchId;
-    const found = await window.bar.searchApps(query);
+    const apps = await bar.listApps();
     if (id !== searchId) return; // une frappe plus récente a déjà relancé la recherche
-    results = found;
+    results = searchApps(apps, query);
     renderResults();
     tileCount.textContent = String(results.length).padStart(2, '0');
   }, SEARCH_DELAY);
@@ -353,7 +434,7 @@ searchInput.addEventListener('input', () => {
 
 searchInput.addEventListener('keydown', (event) => {
   const columns = 6;
-  const moves = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: columns, ArrowUp: -columns };
+  const moves: Record<string, number> = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: columns, ArrowUp: -columns };
   if (event.key === 'Escape' && searchInput.value) {
     event.stopPropagation(); // efface la recherche sans fermer la barre
     clearSearch();
@@ -366,26 +447,27 @@ searchInput.addEventListener('keydown', (event) => {
 });
 
 // ---------- Réglages ----------
-// Chaque changement est envoyé à main.js, qui vérifie, enregistre et renvoie les réglages retenus.
-const KEY_NAMES = { Control: 'Ctrl', Shift: 'Maj', Super: 'Win', Space: 'Espace' };
+// Chaque changement est envoyé à Rust, qui vérifie, enregistre et renvoie les réglages retenus.
+const KEY_NAMES: Record<string, string> = { Control: 'Ctrl', Shift: 'Maj', Super: 'Win', Space: 'Espace' };
 const TYPE_NAMES = { app: 'Appli', file: 'Fichier', folder: 'Dossier', url: 'Site web' };
 const MAX_TILES = 18;
 const SAVE_DELAY = 250; // ms : regroupe les changements rapides (curseur, couleur)
-const setThemes = document.getElementById('set-themes');
-const setBg = document.getElementById('set-bg');
-const setSurface = document.getElementById('set-surface');
-const setFont = document.getElementById('set-font');
-const THEME_COLORS = ['bg', 'surface', 'c1', 'c2'];
-const setC1 = document.getElementById('set-c1');
-const setC2 = document.getElementById('set-c2');
-const setTransparency = document.getElementById('set-transparency');
-const setTransparencyValue = document.getElementById('set-transparency-value');
-const setAutoHide = document.getElementById('set-autohide');
-const setShortcut = document.getElementById('set-shortcut');
-const setTiles = document.getElementById('set-tiles');
-const settingsStatus = document.getElementById('settings-status');
-let settings = null;
-let saveTimer = null;
+const setThemes = $('set-themes');
+const setBg = $<HTMLInputElement>('set-bg');
+const setSurface = $<HTMLInputElement>('set-surface');
+const setFont = $<HTMLSelectElement>('set-font');
+const THEME_COLORS = ['bg', 'surface', 'c1', 'c2'] as const;
+const setC1 = $<HTMLInputElement>('set-c1');
+const setC2 = $<HTMLInputElement>('set-c2');
+const setTransparency = $<HTMLInputElement>('set-transparency');
+const setTransparencyValue = $('set-transparency-value');
+const setAutoHide = $<HTMLInputElement>('set-autohide');
+const setShortcut = $<HTMLButtonElement>('set-shortcut');
+const setTiles = $('set-tiles');
+const settingsStatus = $('settings-status');
+// Chargés au démarrage (fin de cette partie) ; les fonctions qui peuvent tourner avant vérifient.
+let settings: Settings = null!;
+let saveTimer: number | undefined;
 let recordingShortcut = false;
 
 // Couleurs du thème, police, transparence et auto-masquage appliqués à toute la barre.
@@ -399,20 +481,20 @@ function applyLook() {
   else if (!body.classList.contains('is-open')) scheduleHide(HIDE_DELAY);
 }
 
-function shortcutLabel(accelerator) {
+function shortcutLabel(accelerator: string): string {
   return accelerator.split('+').map((k) => KEY_NAMES[k] ?? k).join(' + ');
 }
 
-function setStatus(text, isError = false) {
+function setStatus(text: string, isError = false) {
   settingsStatus.textContent = text;
   settingsStatus.classList.toggle('is-error', isError);
 }
 
-function fileName(fullPath) {
+function fileName(fullPath: string): string {
   return fullPath.split(/[\\/]/).filter(Boolean).pop() ?? fullPath;
 }
 
-function isWebUrl(value) {
+function isWebUrl(value: string): boolean {
   try {
     return ['https:', 'http:'].includes(new URL(value).protocol);
   } catch {
@@ -420,7 +502,7 @@ function isWebUrl(value) {
   }
 }
 
-function iconButton(name, label, onClick, disabled = false) {
+function iconButton(name: string, label: string, onClick: () => void, disabled = false): HTMLButtonElement {
   const button = document.createElement('button');
   button.className = 'icon-btn';
   button.setAttribute('aria-label', label);
@@ -432,7 +514,7 @@ function iconButton(name, label, onClick, disabled = false) {
 }
 
 // Ligne d'une tuile : nom, type, cible, puis monter / descendre / supprimer.
-function tileRow(tile, index, count) {
+function tileRow(tile: Tile, index: number, count: number): HTMLDivElement {
   const row = document.createElement('div');
   row.className = 'tile-row';
   const num = document.createElement('span');
@@ -472,12 +554,12 @@ function tileRow(tile, index, count) {
       row.replaceChild(urlInput(index, tile.name, ''), row.children[3]);
       return;
     }
-    const picked = await window.bar.pickTarget(type.value);
+    const picked = await bar.pickTarget(type.value);
     if (!picked) {
       type.value = tile.type;
       return;
     }
-    replaceTile(index, { name: tile.name, type: type.value, paths: [picked] });
+    replaceTile(index, { name: tile.name, type: type.value as Tile['type'], paths: [picked] });
   });
 
   const remove = iconButton('remove', 'Supprimer la tuile', () => {
@@ -489,8 +571,8 @@ function tileRow(tile, index, count) {
   return row;
 }
 
-function targetField(tile, index) {
-  if (tile.type === 'url') return urlInput(index, tile.name, tile.url);
+function targetField(tile: Tile, index: number): HTMLElement {
+  if (tile.type === 'url') return urlInput(index, tile.name, tile.url ?? '');
   if (tile.type === 'startapp') {
     const label = document.createElement('span');
     label.className = 'fixed';
@@ -499,16 +581,17 @@ function targetField(tile, index) {
   }
   const button = document.createElement('button');
   button.className = 'field target';
-  button.textContent = tile.paths[0].includes('%') ? 'Par défaut' : fileName(tile.paths[0]);
-  button.title = tile.paths[0];
+  const target = tile.paths?.[0] ?? '';
+  button.textContent = target.includes('%') ? 'Par défaut' : fileName(target);
+  button.title = target;
   button.addEventListener('click', async () => {
-    const picked = await window.bar.pickTarget(tile.type);
+    const picked = await bar.pickTarget(tile.type);
     if (picked) replaceTile(index, { name: tile.name, type: tile.type, paths: [picked] });
   });
   return button;
 }
 
-function urlInput(index, name, value) {
+function urlInput(index: number, name: string, value: string): HTMLInputElement {
   const input = document.createElement('input');
   input.className = 'field target';
   input.type = 'url';
@@ -525,7 +608,7 @@ function urlInput(index, name, value) {
   return input;
 }
 
-function replaceTile(index, tile) {
+function replaceTile(index: number, tile: Tile) {
   settings.shortcuts[index] = tile;
   renderSettings();
   save();
@@ -534,7 +617,7 @@ function replaceTile(index, tile) {
 // Nouvelle tuile : on choisit d'abord l'appli ; le type se change ensuite sur la ligne.
 async function addTile() {
   if (settings.shortcuts.length >= MAX_TILES) return setStatus(`${MAX_TILES} tuiles au maximum.`, true);
-  const picked = await window.bar.pickTarget('app');
+  const picked = await bar.pickTarget('app');
   if (!picked) return;
   const name = fileName(picked).replace(/\.(exe|lnk|appref-ms)$/i, '');
   settings.shortcuts.push({ name, type: 'app', paths: [picked] });
@@ -543,7 +626,7 @@ async function addTile() {
 }
 
 function renderTransparency() {
-  setTransparency.value = settings.transparency;
+  setTransparency.value = String(settings.transparency);
   setTransparency.style.setProperty('--fill', `${(settings.transparency / 70) * 100}%`);
   setTransparencyValue.textContent = `${settings.transparency} %`;
 }
@@ -593,12 +676,12 @@ function renderSettings() {
 function save() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
-    const result = await window.bar.saveSettings(settings);
+    const result = await bar.saveSettings(settings);
     settings = result.settings;
     applyLook();
     if (result.ok) setStatus('Enregistré.');
     else {
-      setStatus(result.error, true);
+      setStatus(result.error ?? '', true);
       renderSettings();
     }
     refreshTiles();
@@ -606,17 +689,17 @@ function save() {
 }
 
 // Lancement au démarrage : réglé par Windows (pas dans la config), et seulement dans la version installée.
-const setStartupInput = document.getElementById('set-startup');
+const setStartupInput = $<HTMLInputElement>('set-startup');
 
 async function renderStartup() {
-  const startup = await window.bar.getStartup();
+  const startup = await bar.getStartup();
   setStartupInput.checked = startup.enabled;
   setStartupInput.disabled = !startup.available;
-  document.getElementById('startup-row').title = startup.available ? '' : 'Disponible dans la version installée';
+  $('startup-row').title = startup.available ? '' : 'Disponible dans la version installée';
 }
 
 setStartupInput.addEventListener('change', async () => {
-  const startup = await window.bar.setStartup(setStartupInput.checked);
+  const startup = await bar.setStartup(setStartupInput.checked);
   setStartupInput.checked = startup.enabled;
   setStatus(startup.enabled ? 'Island se lancera au démarrage de Windows.' : 'Lancement au démarrage désactivé.');
 });
@@ -634,7 +717,7 @@ function closeSettings() {
 }
 
 // Couleur changée à la main : appliquée tout de suite ; la pastille du thème se met à jour.
-for (const [input, key] of [[setBg, 'bg'], [setSurface, 'surface'], [setC1, 'c1'], [setC2, 'c2']]) {
+for (const [input, key] of [[setBg, 'bg'], [setSurface, 'surface'], [setC1, 'c1'], [setC2, 'c2']] as const) {
   input.addEventListener('input', () => {
     settings[key] = input.value;
     applyLook();
@@ -688,18 +771,18 @@ document.addEventListener('keydown', (event) => {
   save();
 });
 
-document.getElementById('settings-back').addEventListener('click', closeSettings);
-document.getElementById('settings-quit').addEventListener('click', () => window.bar.quit());
-document.getElementById('settings-reset').addEventListener('click', async () => {
-  const result = await window.bar.resetSettings();
+$('settings-back').addEventListener('click', closeSettings);
+$('settings-quit').addEventListener('click', () => bar.quit());
+$('settings-reset').addEventListener('click', async () => {
+  const result = await bar.resetSettings();
   settings = result.settings;
   applyLook();
   renderSettings();
   refreshTiles();
-  setStatus(result.ok ? 'Réglages par défaut remis.' : result.error, !result.ok);
+  setStatus(result.ok ? 'Réglages par défaut remis.' : result.error ?? '', !result.ok);
 });
 
-window.bar.getSettings().then((loaded) => {
+bar.getSettings().then((loaded) => {
   settings = loaded;
   applyLook();
   document.fonts.ready.then(syncPillWidth); // la police choisie peut changer la largeur de la pilule
@@ -710,21 +793,21 @@ window.bar.getSettings().then((loaded) => {
 // Clic sur l'horloge : l'agenda se déplie à droite du panneau. Une semaine à la fois (‹ › pour changer),
 // le bouton + montre les agendas (liens iCal, fichiers .ics). Tout le texte des agendas est affiché
 // avec textContent : un agenda venu d'Internet ne peut pas injecter de code.
-const weekEl = document.getElementById('week');
-const weekLabel = document.getElementById('week-label');
-const weekRange = document.getElementById('week-range');
-const manageButton = document.getElementById('agenda-manage');
-const sourceList = document.getElementById('source-list');
-const sourceForm = document.getElementById('source-add');
-const sourceUrl = document.getElementById('source-url');
-const agendaStatus = document.getElementById('agenda-status');
+const weekEl = $('week');
+const weekLabel = $('week-label');
+const weekRange = $('week-range');
+const manageButton = $('agenda-manage');
+const sourceList = $('source-list');
+const sourceForm = $<HTMLFormElement>('source-add');
+const sourceUrl = $<HTMLInputElement>('source-url');
+const agendaStatus = $('agenda-status');
 const DAY_MS = 24 * 60 * 60 * 1000;
 const dayName = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric' });
 const rangeDay = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
 const hourMinute = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' });
 let shownWeek = Date.now(); // un instant de la semaine affichée
 
-function element(tag, className, text) {
+function element(tag: string, className?: string, text?: string): HTMLElement {
   const el = document.createElement(tag);
   if (className) el.className = className;
   if (text !== undefined) el.textContent = text;
@@ -732,13 +815,15 @@ function element(tag, className, text) {
 }
 
 // Numéro de semaine ISO (lundi = début de semaine).
-function weekNumber(monday) {
+function weekNumber(monday: Date): number {
   const thursday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 3);
   const firstThursday = new Date(thursday.getFullYear(), 0, 4);
-  return 1 + Math.round((thursday - firstThursday) / DAY_MS / 7 - ((firstThursday.getDay() + 6) % 7 - 3) / 7);
+  return 1 + Math.round((thursday.getTime() - firstThursday.getTime()) / DAY_MS / 7 - ((firstThursday.getDay() + 6) % 7 - 3) / 7);
 }
 
-function eventRow(event, dayStart) {
+type WeekEvent = CalendarEvent & { calendar: number };
+
+function eventRow(event: WeekEvent, dayStart: number): HTMLElement {
   const row = element('div', event.calendar % 2 ? 'event alt' : 'event');
   const startsToday = event.start >= dayStart;
   const time = event.allDay ? 'Journée' : startsToday ? hourMinute.format(event.start) : 'Suite';
@@ -749,11 +834,19 @@ function eventRow(event, dayStart) {
   return row;
 }
 
+// Événements de la semaine qui commence à « monday », tous agendas confondus.
+async function weekEvents(monday: Date): Promise<WeekEvent[]> {
+  const to = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 7);
+  const texts = await bar.calendarTexts();
+  return texts
+    .flatMap((text, calendar) => eventsBetween(text, monday, to).map((e) => ({ ...e, calendar })))
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+}
+
 async function renderWeek() {
-  const week = await window.bar.getWeek(shownWeek);
-  if (!week) return;
-  const monday = new Date(week.start);
-  const sunday = new Date(week.start + 6 * DAY_MS);
+  const monday = weekStart(new Date(shownWeek));
+  const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+  const week = { events: await weekEvents(monday) };
   weekLabel.textContent = `Semaine ${weekNumber(monday)}`;
   // « 9 – 15 nov. », ou « 28 sept. – 4 oct. » quand la semaine change de mois.
   weekRange.textContent = monday.getMonth() === sunday.getMonth()
@@ -779,13 +872,13 @@ async function renderWeek() {
   weekEl.querySelector('.is-today')?.scrollIntoView({ block: 'start' });
 }
 
-function setAgendaStatus(text, isError = false) {
+function setAgendaStatus(text: string, isError = false) {
   agendaStatus.textContent = text;
   agendaStatus.classList.toggle('is-error', isError);
 }
 
 async function renderSources() {
-  const calendars = await window.bar.getCalendars();
+  const calendars = await bar.getCalendars();
   sourceList.replaceChildren(...calendars.map((calendar) => {
     const row = element('div', 'source');
     const info = element('div', 'source-info');
@@ -794,21 +887,21 @@ async function renderSources() {
       calendar.error || (calendar.type === 'url' ? 'Lien, mis à jour toutes les 15 min' : 'Fichier importé'));
     info.append(meta);
     row.append(info, iconButton('remove', `Retirer l'agenda ${calendar.name}`, async () => {
-      applyCalendarResult(await window.bar.removeCalendar(calendar.id), 'Agenda retiré.');
+      applyCalendarResult(await bar.removeCalendar(calendar.id), 'Agenda retiré.');
     }));
     return row;
   }));
   if (!calendars.length) sourceList.append(element('div', 'day-empty', 'Aucun agenda pour l\'instant.'));
 }
 
-function applyCalendarResult(result, okText) {
+function applyCalendarResult(result: SaveResult, okText: string) {
   settings = result.settings;
-  setAgendaStatus(result.ok ? okText : result.error, !result.ok);
+  setAgendaStatus(result.ok ? okText : result.error ?? '', !result.ok);
   renderSources();
   renderWeek();
 }
 
-function setManaging(on) {
+function setManaging(on: boolean) {
   agenda.classList.toggle('is-managing', on);
   manageButton.setAttribute('aria-pressed', String(on));
   if (on) renderSources();
@@ -824,14 +917,14 @@ function openAgenda() {
   body.classList.add('is-agenda');
 }
 
-document.getElementById('clock').addEventListener('click', (event) => {
-  if (event.target.closest('#collapse')) return;
+$('clock').addEventListener('click', (event) => {
+  if ((event.target as Element).closest('#collapse')) return;
   if (body.classList.contains('is-agenda')) body.classList.remove('is-agenda');
   else openAgenda();
 });
-document.getElementById('week-prev').addEventListener('click', () => { shownWeek -= 7 * DAY_MS; renderWeek(); });
-document.getElementById('week-next').addEventListener('click', () => { shownWeek += 7 * DAY_MS; renderWeek(); });
-document.getElementById('week-today').addEventListener('click', () => {
+$('week-prev').addEventListener('click', () => { shownWeek -= 7 * DAY_MS; renderWeek(); });
+$('week-next').addEventListener('click', () => { shownWeek += 7 * DAY_MS; renderWeek(); });
+$('week-today').addEventListener('click', () => {
   shownWeek = Date.now();
   setManaging(false);
 });
@@ -839,19 +932,19 @@ manageButton.addEventListener('click', () => setManaging(!agenda.classList.conta
 sourceForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   setAgendaStatus('Chargement de l\'agenda…');
-  const result = await window.bar.addCalendar(sourceUrl.value);
+  const result = await bar.addCalendar(sourceUrl.value);
   if (result.ok) sourceUrl.value = '';
   applyCalendarResult(result, 'Agenda ajouté.');
 });
-document.getElementById('source-import').addEventListener('click', async () => {
-  applyCalendarResult(await window.bar.importCalendar(), '');
+$('source-import').addEventListener('click', async () => {
+  applyCalendarResult(await bar.importCalendar(), '');
 });
 
 // ---------- Horloge ----------
 // « 23:20 » et « MER. 14 OCT. », mises à jour au changement de minute.
-const timeEl = document.getElementById('time');
-const pillTimeEl = document.getElementById('pill-time');
-const dateEl = document.getElementById('date');
+const timeEl = $('time');
+const pillTimeEl = $('pill-time');
+const dateEl = $('date');
 const dateFormat = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
 
 function renderClock() {
@@ -870,36 +963,36 @@ renderClock();
 // Morceau en cours (Spotify, Deezer, Apple Music, YouTube dans un navigateur…), relu chaque seconde.
 // Sans musique, la pilule n'affiche que l'heure.
 const MEDIA_POLL = 1000;
-const play = document.getElementById('play');
-const prev = document.getElementById('prev');
-const next = document.getElementById('next');
-const cover = document.getElementById('cover');
-const coverArt = document.getElementById('cover-art');
-const trackTitle = document.getElementById('track-title');
-const trackArtist = document.getElementById('track-artist');
-const pillTitle = document.getElementById('pill-title');
-const progressFill = document.getElementById('progress-fill');
-const timePos = document.getElementById('time-pos');
-const timeTotal = document.getElementById('time-total');
-let media = null;
+const play = $<HTMLButtonElement>('play');
+const prev = $<HTMLButtonElement>('prev');
+const next = $<HTMLButtonElement>('next');
+const cover = $('cover');
+const coverArt = $<HTMLImageElement>('cover-art');
+const trackTitle = $('track-title');
+const trackArtist = $('track-artist');
+const pillTitle = $('pill-title');
+const progressFill = $('progress-fill');
+const timePos = $('time-pos');
+const timeTotal = $('time-total');
+let media: Media | null = null;
 let artFor = ''; // morceau dont la pochette est affichée
 let artPending = false;
 
 // Nom lisible de l'appli quand il n'y a pas d'artiste (« Spotify.exe » → « Spotify »).
-function appName(id) {
-  return id.split(/[\\!]/).pop().replace(/\.exe$/i, '');
+function appName(id: string): string {
+  return (id.split(/[\\!]/).pop() ?? id).replace(/\.exe$/i, '');
 }
 
 function renderTimeline() {
   const position = media && currentPosition(media, Date.now());
-  body.classList.toggle('no-timeline', position === null || !media);
-  if (position === null || !media) return;
+  body.classList.toggle('no-timeline', position == null || !media);
+  if (position == null || !media) return;
   progressFill.style.width = `${(position / media.duration) * 100}%`;
   timePos.textContent = formatTime(position);
   timeTotal.textContent = formatTime(media.duration);
 }
 
-function showArt(url) {
+function showArt(url: string) {
   coverArt.onload = () => {
     // Miniature de vidéo (plus large que haute) : case élargie au format 16:9.
     cover.classList.toggle('is-wide', coverArt.naturalWidth > coverArt.naturalHeight * 1.2);
@@ -914,11 +1007,11 @@ function clearArt() {
   coverArt.removeAttribute('src');
 }
 
-async function loadArt(key) {
+async function loadArt(key: string) {
   if (artPending) return;
   artPending = true;
   try {
-    const url = await window.bar.getMediaArt();
+    const url = await bar.getMediaArt();
     if (url && media && key === trackKey(media)) {
       artFor = key;
       showArt(url);
@@ -928,7 +1021,7 @@ async function loadArt(key) {
   }
 }
 
-function trackKey(m) {
+function trackKey(m: Media): string {
   return `${m.app}|${m.title}|${m.artist}`;
 }
 
@@ -961,12 +1054,12 @@ function renderMedia() {
 }
 
 async function refreshMedia() {
-  media = await window.bar.getMedia();
+  media = await bar.getMedia();
   renderMedia();
 }
 
-async function control(action) {
-  if (await window.bar.mediaControl(action)) setTimeout(refreshMedia, 300);
+async function control(action: 'play' | 'next' | 'prev') {
+  if (await bar.mediaControl(action)) setTimeout(refreshMedia, 300);
 }
 
 play.addEventListener('click', () => control('play'));
@@ -977,13 +1070,13 @@ refreshMedia();
 setInterval(refreshMedia, MEDIA_POLL);
 
 // ---------- Volume et micro ----------
-// Vrai volume du système et vrai micro (via main.js). Relus à chaque ouverture du panneau,
+// Vrai volume du système et vrai micro (via Rust). Relus à chaque ouverture du panneau,
 // car ils peuvent changer ailleurs (touches du clavier, réglages Windows).
-const volume = document.getElementById('volume');
-const volumeValue = document.getElementById('volume-value');
-const mic = document.getElementById('mic');
+const volume = $<HTMLInputElement>('volume');
+const volumeValue = $('volume-value');
+const mic = $('mic');
 const VOLUME_THROTTLE = 60; // ms entre deux envois pendant qu'on fait glisser le curseur
-let volumeTimer = null;
+let volumeTimer: number | undefined;
 let micMuted = false;
 
 function renderVolume() {
@@ -998,9 +1091,9 @@ function renderMic() {
 }
 
 async function refreshAudio() {
-  const audio = await window.bar.getAudio();
+  const audio = await bar.getAudio();
   if (audio.volume !== null) {
-    volume.value = audio.volume;
+    volume.value = String(audio.volume);
     renderVolume();
   }
   if (audio.micMuted !== null) {
@@ -1014,13 +1107,13 @@ volume.addEventListener('input', () => {
   // Un envoi toutes les 60 ms au plus ; la dernière position part toujours.
   if (volumeTimer) return;
   volumeTimer = setTimeout(() => {
-    volumeTimer = null;
-    window.bar.setVolume(Number(volume.value));
+    volumeTimer = undefined;
+    bar.setVolume(Number(volume.value));
   }, VOLUME_THROTTLE);
 });
 
 mic.addEventListener('click', async () => {
-  if (await window.bar.setMicMuted(!micMuted)) {
+  if (await bar.setMicMuted(!micMuted)) {
     micMuted = !micMuted;
     renderMic();
   }

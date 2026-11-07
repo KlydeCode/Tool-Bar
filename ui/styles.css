@@ -1,31 +1,31 @@
-/* Polices locales (licences OFL dans assets/fonts/) */
+/* Polices locales (licences OFL dans ui/fonts/) */
 @font-face {
   font-family: "Bricolage Grotesque";
-  src: url("../assets/fonts/BricolageGrotesque.ttf") format("truetype");
+  src: url("fonts/BricolageGrotesque.ttf") format("truetype");
   font-weight: 200 800;
 }
 @font-face {
   font-family: "Uncut Sans";
-  src: url("../assets/fonts/UncutSans-Variable.woff2") format("woff2");
+  src: url("fonts/UncutSans-Variable.woff2") format("woff2");
   font-weight: 300 700;
 }
 @font-face {
   font-family: "Pixelify Sans";
-  src: url("../assets/fonts/PixelifySans.ttf") format("truetype");
+  src: url("fonts/PixelifySans.ttf") format("truetype");
   font-weight: 400 700;
 }
 @font-face {
   font-family: "Silkscreen";
-  src: url("../assets/fonts/Silkscreen-Regular.ttf") format("truetype");
+  src: url("fonts/Silkscreen-Regular.ttf") format("truetype");
 }
 @font-face {
   font-family: "Fraunces";
-  src: url("../assets/fonts/Fraunces.ttf") format("truetype");
+  src: url("fonts/Fraunces.ttf") format("truetype");
   font-weight: 100 900;
 }
 @font-face {
   font-family: "JetBrains Mono";
-  src: url("../assets/fonts/JetBrainsMono.ttf") format("truetype");
+  src: url("fonts/JetBrainsMono.ttf") format("truetype");
   font-weight: 100 800;
 }
 
@@ -942,4 +942,35 @@ select.field option { background: var(--bg); }
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* ---------- Menu du clic droit sur une appli trouvée ---------- */
+.menu {
+  position: absolute;
+  z-index: 10;
+  min-width: 250px;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 96%, transparent);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+}
+.menu-item {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 9px;
+  text-align: left;
+  font-size: 13px;
+}
+.menu-item:hover, .menu-item:focus-visible {
+  background: color-mix(in srgb, var(--c2) 22%, transparent);
+  outline: none;
+}
+.menu-sep {
+  width: 100%;
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid var(--border);
 }

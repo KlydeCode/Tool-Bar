@@ -1,6 +1,6 @@
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const { searchApps, parseApps } = require('../lib/search');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { searchApps } from '../ui/js/search.js';
 
 const apps = [
   { name: 'Calculatrice', id: 'calc' },
@@ -10,7 +10,7 @@ const apps = [
   { name: 'Outil Capture d\'écran', id: 'snip' },
   { name: 'Microsoft Edge', id: 'edge' },
 ];
-const names = (results) => results.map((r) => apps[r.index].name);
+const names = (results) => results.map((r) => r.name);
 
 test('recherche sans accents ni majuscules', () => {
   assert.deepEqual(names(searchApps(apps, 'parametres')), ['Paramètres']);
@@ -19,18 +19,11 @@ test('recherche sans accents ni majuscules', () => {
 
 test('ordre : début du nom, puis début d\'un mot, puis ailleurs', () => {
   const extra = [...apps, { name: 'Codec Pack', id: 'codec' }, { name: 'Barcode', id: 'barcode' }];
-  const results = searchApps(extra, 'code').map((r) => extra[r.index].name);
+  const results = names(searchApps(extra, 'code'));
   assert.deepEqual(results, ['Codec Pack', 'Visual Studio Code', 'Barcode']);
 });
 
 test('recherche vide : rien ; limite du nombre de résultats', () => {
   assert.deepEqual(searchApps(apps, '   '), []);
   assert.equal(searchApps(apps, 'e', 2).length, 2);
-});
-
-test('liste du script : vérifiée, entrées invalides retirées', () => {
-  const line = JSON.stringify([{ name: 'Ok', id: 'a!b' }, { name: '', id: 'x' }, { name: 'Sans id' }, 'texte']);
-  assert.deepEqual(parseApps(line), [{ name: 'Ok', id: 'a!b' }]);
-  assert.deepEqual(parseApps('pas du json'), []);
-  assert.deepEqual(parseApps('{"name":"seul"}'), []);
 });

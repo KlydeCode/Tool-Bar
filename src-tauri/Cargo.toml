@@ -1,0 +1,25 @@
+[package]
+name = "island"
+version = "2.0.0"
+description = "Barre façon Dynamic Island pour Windows 11"
+authors = ["KlydeCode"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-autostart = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-single-instance = "2"
+serde_json = { version = "1", features = ["preserve_order"] }
+base64 = "0.22"
+url = "2"
+ureq = "2"
+
+[profile.release]
+strip = true
+lto = true

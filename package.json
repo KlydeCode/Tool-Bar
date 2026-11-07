@@ -1,52 +1,20 @@
 {
   "name": "island",
   "productName": "Island",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Barre façon Dynamic Island pour Windows 11",
   "author": "KlydeCode",
-  "main": "main.js",
   "private": true,
+  "type": "module",
   "scripts": {
-    "start": "electron .",
-    "test": "node --test",
-    "dist": "electron-builder --win nsis"
-  },
-  "build": {
-    "appId": "com.klydecode.island",
-    "productName": "Island",
-    "files": [
-      "main.js",
-      "preload.js",
-      "config.default.json",
-      "src/**",
-      "lib/**",
-      "helpers/**",
-      "assets/**"
-    ],
-    "asarUnpack": [
-      "helpers/**"
-    ],
-    "directories": {
-      "buildResources": "build",
-      "output": "dist"
-    },
-    "win": {
-      "target": "nsis",
-      "icon": "build/icon.png"
-    },
-    "nsis": {
-      "oneClick": true,
-      "perMachine": false,
-      "runAfterFinish": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Island",
-      "artifactName": "Island-Setup-${version}.exe"
-    }
+    "build:ui": "node -e \"require('node:fs').copyFileSync('node_modules/ical.js/dist/ical.js','ui/vendor/ical.js')\" && tsc",
+    "start": "tauri dev",
+    "test": "npm run build:ui && node --test && cargo test --manifest-path src-tauri/Cargo.toml",
+    "dist": "tauri build"
   },
   "devDependencies": {
-    "electron": "^44.7.2",
-    "electron-builder": "^26.15.3"
+    "@tauri-apps/cli": "^2.12.4",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "ical.js": "^2.2.1"

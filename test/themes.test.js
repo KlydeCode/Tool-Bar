@@ -1,8 +1,9 @@
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const { THEMES, FONTS } = require('../lib/themes');
-const { cleanSettings } = require('../lib/settings');
-const defaults = require('../config.default.json');
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { FONTS, THEMES } from '../ui/js/themes.js';
+
+const defaults = JSON.parse(readFileSync(new URL('../config.default.json', import.meta.url), 'utf8'));
 
 const COLOR_KEYS = ['bg', 'surface', 'c1', 'c2'];
 
@@ -13,12 +14,11 @@ function luminance(hex) {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
-test('chaque thème : 4 couleurs au plus, toutes valides et acceptées par les réglages', () => {
+test('chaque thème : 4 couleurs, au format accepté par les réglages (#rrggbb en minuscules)', () => {
   for (const theme of THEMES) {
     const colors = Object.keys(theme).filter((k) => !['id', 'name'].includes(k));
     assert.deepEqual(colors, COLOR_KEYS, theme.id);
-    const clean = cleanSettings({ ...defaults, ...theme }, defaults);
-    for (const key of COLOR_KEYS) assert.equal(clean[key], theme[key], `${theme.id}.${key}`);
+    for (const key of COLOR_KEYS) assert.match(theme[key], /^#[0-9a-f]{6}$/, `${theme.id}.${key}`);
   }
 });
 
@@ -35,7 +35,8 @@ test('le thème Minimal correspond aux réglages par défaut', () => {
   for (const key of COLOR_KEYS) assert.equal(defaults[key], minimal[key], key);
 });
 
-test('police : valeur connue gardée, sinon celle par défaut', () => {
-  for (const font of FONTS) assert.equal(cleanSettings({ font: font.id }, defaults).font, font.id);
-  assert.equal(cleanSettings({ font: 'comic-sans' }, defaults).font, defaults.font);
+test('polices : mêmes identifiants que ceux acceptés par Rust (settings.rs)', () => {
+  const rust = readFileSync(new URL('../src-tauri/src/settings.rs', import.meta.url), 'utf8');
+  const accepted = /const FONTS: \[&str; \d\] = \[(.*?)\];/.exec(rust)[1].match(/"[^"]+"/g).map((f) => f.slice(1, -1));
+  assert.deepEqual(FONTS.map((f) => f.id), accepted);
 });
