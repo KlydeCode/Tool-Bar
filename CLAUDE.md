@@ -1,4 +1,4 @@
-# CLAUDE.md : Island
+﻿# CLAUDE.md : Island
 
 > Nom choisi par l'utilisateur à la version 1.0 (avant : « Ma Barre »). Version actuelle : 2.0.0
 > (réécriture Electron → Tauri 2 : Rust + TypeScript, demandée par l'utilisateur ; la 1.0 Electron reste sur `main`).
@@ -68,7 +68,7 @@ Fidélité à la maquette : c'est la référence. Une capture est fournie par l'
 - Cartes intérieures : `rgba(255,255,255,0.06)` ; bordure du panneau : `rgba(255,255,255,0.1)`
 - Texte : `#F4F4F5` ; texte secondaire : `#B4B4BC` ; texte sur les couleurs : `#0A0A0B`
 
-**Polices** (fichiers en local dans `assets/fonts/`, licences libres OFL)
+**Polices** (fichiers en local dans `ui/fonts/`, licences libres OFL)
 - **Bricolage Grotesque** : horloge (60 px, graisse 800, interlettrage -0.05em) et titre du morceau (19 px, 700)
 - **Uncut Sans** : tout le texte courant (github.com/kaspernordkvist/uncut_sans)
 - **JetBrains Mono** : petites étiquettes en majuscules (10,5 px, interlettrage 0.14em : EN COURS, RACCOURCIS, VOLUME), chiffres, date
@@ -119,7 +119,7 @@ Ajouts demandés après la phase 9 (avant l'installateur) :
 - **Thèmes** (`ui/ts/themes.ts`) : 5 thèmes de 4 couleurs (fond, cartes, couleur 1, couleur 2) tirés des palettes Lospec
   envoyées par l'utilisateur (Minimal, Pastel Landscape, Mighty Retro Zero, Spaceship 25, Apollo) ; chaque couleur reste modifiable.
 - **Police** au choix : Minimal (Bricolage / Uncut Sans / JetBrains Mono), Pixel art (Pixelify Sans / Silkscreen, tailles
-  choisies pour rester nettes), Littéraire (Fraunces). Toutes en OFL, dans `assets/fonts/`.
+  choisies pour rester nettes), Littéraire (Fraunces). Toutes en OFL, dans `ui/fonts/`.
 - **Agenda** : clic sur l'horloge → panneau qui se déplie à droite du panneau principal (fenêtre élargie à 1400 px,
   transparente). Une semaine à la fois (‹ › et « Aujourd'hui »), en lecture seule. Sources : liens iCal (https ou webcal,
   relus toutes les 15 min, sans connexion à un compte) ou fichiers .ics importés ; copie dans `userData/calendars/`.
