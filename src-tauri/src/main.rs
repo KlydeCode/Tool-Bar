@@ -79,8 +79,13 @@ fn place_window(win: &WebviewWindow) {
 #[link(name = "user32")]
 extern "system" {
     fn GetAsyncKeyState(key: i32) -> i16;
+    fn IsWindow(window: isize) -> i32;
+    fn IsIconic(window: isize) -> i32;
+    fn ShowWindow(window: isize, command: i32) -> i32;
+    fn SetForegroundWindow(window: isize) -> i32;
 }
 const VK_CONTROL: i32 = 0x11;
+const SW_RESTORE: i32 = 9;
 
 // Touche Ctrl enfoncée en ce moment (n'importe quelle appli au premier plan).
 fn ctrl_down() -> bool {
@@ -332,19 +337,49 @@ fn file_icon(bar: &Bar, path: &str) -> Option<String> {
     data_url("png", bar.helper.ask(&format!("file-icon {}", arg(path))))
 }
 
+// Vrai programme d'une tuile d'appli du Microsoft Store (Claude, Terminal) : l'alias lancé n'est qu'un relais.
+fn package_file(bar: &Bar, tile: &Value) -> Option<String> {
+    let package = tile["icon"]["package"].as_str().filter(|p| launch::is_package_name(p))?;
+    let dir = bar.helper.ask(&format!("package-dir {}", arg(package)));
+    launch::package_icon_file(&dir, tile["icon"]["file"].as_str()?)
+}
+
 // Vraie icône d'une tuile « app » : celle du paquet Microsoft Store si elle est indiquée, sinon celle du fichier.
 fn tile_icon(app: &AppHandle, bar: &Bar, tile: &Value) -> Option<String> {
-    let package = tile["icon"]["package"].as_str().filter(|p| launch::is_package_name(p));
-    if let (Some(package), Some(file)) = (package, tile["icon"]["file"].as_str()) {
-        let dir = bar.helper.ask(&format!("package-dir {}", arg(package)));
-        if let Some(icon) = launch::package_icon_file(&dir, file).and_then(|f| file_icon(bar, &f)) {
-            return Some(icon);
-        }
+    if let Some(icon) = package_file(bar, tile).and_then(|f| file_icon(bar, &f)) {
+        return Some(icon);
     }
     match resolve_target(app, tile)? {
         Target::Path(path) => file_icon(bar, &path),
         Target::Url(_) => None,
     }
+}
+
+// Appli déjà lancée : sa fenêtre revient au premier plan au lieu d'en ouvrir une nouvelle.
+// « path » : son .exe, son .lnk, ou le dossier d'une appli du Microsoft Store.
+fn focus_running(bar: &Bar, path: &str) -> bool {
+    if path.is_empty() {
+        return false;
+    }
+    let Ok(window) = bar.helper.ask(&format!("window {}", arg(path))).parse::<isize>() else { return false };
+    // Fait ici et non par le script : Windows ne laisse changer la fenêtre active qu'au programme
+    // qui vient de recevoir le clic (Island).
+    // SAFETY : fonctions Windows sans pointeur ; IsWindow vérifie que la fenêtre existe encore.
+    unsafe {
+        if IsWindow(window) == 0 {
+            return false;
+        }
+        if IsIconic(window) != 0 {
+            ShowWindow(window, SW_RESTORE);
+        }
+        SetForegroundWindow(window);
+    }
+    true
+}
+
+// Appli du menu Démarrer : remise au premier plan si elle tourne déjà, sinon lancée.
+fn show_start_app(bar: &Bar, index: usize, found: &StartApp) -> bool {
+    focus_running(bar, &app_file(bar, index)) || open_start_app(&found.id)
 }
 
 // Nom, type et vraie icône (applis uniquement) de chaque tuile, pour l'interface.
@@ -378,9 +413,19 @@ async fn launch(app: AppHandle, index: usize) -> bool {
     run(app, move |app, bar| {
         let Some(tile) = lock(&bar.config)["shortcuts"].get(index).cloned() else { return false };
         if tile["type"] == "startapp" {
-            return find_app(bar, tile["appId"].as_str().unwrap_or_default()).is_some_and(|(_, a)| open_start_app(&a.id));
+            return find_app(bar, tile["appId"].as_str().unwrap_or_default()).is_some_and(|(i, a)| show_start_app(bar, i, &a));
         }
-        let result = match resolve_target(app, &tile) {
+        let target = resolve_target(app, &tile);
+        if tile["type"] == "app" {
+            let path = match &target {
+                Some(Target::Path(path)) => path.clone(),
+                _ => String::new(),
+            };
+            if package_file(bar, &tile).into_iter().chain([path]).any(|p| focus_running(bar, &p)) {
+                return true;
+            }
+        }
+        let result = match target {
             Some(Target::Url(url)) => app.opener().open_url(url, None::<&str>),
             Some(Target::Path(path)) => app.opener().open_path(path, None::<&str>),
             None => {
@@ -454,7 +499,7 @@ async fn get_app_icon(app: AppHandle, id: String) -> Option<String> {
 
 #[tauri::command]
 async fn launch_app(app: AppHandle, id: String) -> bool {
-    run(app, move |_, bar| find_app(bar, &id).is_some_and(|(_, a)| open_start_app(&a.id))).await
+    run(app, move |_, bar| find_app(bar, &id).is_some_and(|(i, a)| show_start_app(bar, i, &a))).await
 }
 
 // Ajoute l'appli trouvée en tuile (juste avant la tuile Réglages si elle est en dernier).

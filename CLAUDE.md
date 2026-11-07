@@ -103,7 +103,8 @@ et que l'utilisateur a validé à l'écran ce qui ne peut être vérifié que su
    les clics autour doivent traverser la fenêtre (Rust suit le curseur et active `set_ignore_cursor_events` hors des zones envoyées par l'interface).
 4. **Raccourci clavier global** (Alt+Maj+Espace par défaut ; Ctrl+Alt+Espace est déjà pris sur le PC de l'utilisateur, sans doute par l'appli Claude) pour ouvrir/fermer.
 5. **Raccourcis d'applis** : lancer VS Code, ouvrir Téléchargements, le navigateur par défaut, Claude (appli de bureau, sinon claude.ai),
-   Windows Terminal. Les vraies icônes viennent de `app.getFileIcon()`. Raccourcis définis dans la config.
+   Windows Terminal. Raccourcis définis dans la config. Depuis la 2.0 : une appli (tuile ou recherche) déjà lancée
+   revient au premier plan au lieu d'être relancée (fenêtre trouvée par `windows.ps1`, activée par Rust).
 6. **Auto-masquage** (option) : la barre glisse hors de l'écran, revient quand la souris touche le haut.
 7. **Volume et micro** : lire et régler le volume système, couper le micro.
 8. **Musique** : titre/artiste en cours, lecture/pause, suivant/précédent (Spotify, navigateur…). C'est la partie la plus technique :

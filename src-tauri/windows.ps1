@@ -17,6 +17,8 @@
 #   file-icon <chemin>                   -> icône d'un fichier (32 px) en PNG base64
 #   package-dir <nom>                    -> dossier d'installation d'une appli du Microsoft Store
 #   lnk <fichier> <cible> <arguments> <icône> -> « ok » : raccourci .lnk créé
+#   window <chemin>                      -> fenêtre principale (numéro) de l'appli (.exe, .lnk ou dossier
+#                                           d'un paquet) si elle tourne déjà ; sinon réponse vide
 # Les arguments sont des nombres, ou des textes encodés en base64 (UTF-8, « - » = vide) déjà vérifiés
 # par Island : ils ne sont jamais exécutés comme commande, seulement lus comme données.
 Add-Type -AssemblyName System.Drawing
@@ -213,6 +215,18 @@ function New-Lnk($file, $target, $arguments, $iconFile) {
   'ok'
 }
 
+function Find-Window($path) {
+  if ($path -like '*.lnk') { $path = (New-Object -ComObject WScript.Shell).CreateShortcut($path).TargetPath }
+  if (-not $path -or -not (Test-Path -LiteralPath $path)) { return '' }
+  # Dossier = appli du Microsoft Store : n'importe quel programme de son dossier d'installation.
+  $isFolder = Test-Path -LiteralPath $path -PathType Container
+  $prefix = $path.TrimEnd('\') + '\'
+  $running = Get-Process | Where-Object {
+    $_.MainWindowHandle -ne 0 -and $_.Path -and $(if ($isFolder) { $_.Path.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) } else { $_.Path -eq $path })
+  } | Select-Object -First 1
+  if ($running) { [string]$running.MainWindowHandle.ToInt64() } else { '' }
+}
+
 function Get-Capture($x, $y, $w, $h, $k) {
   $full = New-Object System.Drawing.Bitmap ([int]$w), ([int]$h)
   $g = [System.Drawing.Graphics]::FromImage($full)
@@ -404,6 +418,7 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
       'app-path' { Get-AppPath (Get-Numbers $parts 1) }
       'notifs' { Get-Notifications }
       'notif-icon' { Get-NotificationIcon (Get-Numbers $parts 1) }
+      'window' { Find-Window (Get-Text $parts 1) }
       'file-icon' { Get-FileIcon (Get-Text $parts 1) }
       'package-dir' { (Get-AppxPackage -Name (Get-Text $parts 1) | Select-Object -First 1).InstallLocation }
       'lnk' {
