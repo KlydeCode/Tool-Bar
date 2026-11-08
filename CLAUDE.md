@@ -1,7 +1,7 @@
 # CLAUDE.md : Island
 
 > Nom choisi par l'utilisateur à la version 1.0 (avant : « Ma Barre »). Version actuelle : 2.0.0
-> (réécriture Electron → Tauri 2 : Rust + TypeScript, demandée par l'utilisateur ; la 1.0 Electron reste sur `main`).
+> (réécriture Electron → Tauri 2 : Rust + TypeScript, demandée par l'utilisateur ; la 1.0 Electron reste disponible avec l'étiquette `v1.0.0`).
 
 ## Le projet
 
